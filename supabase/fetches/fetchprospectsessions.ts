@@ -3,11 +3,11 @@ import { Session, SessionType } from './fetchsessions'
 import { DateRangeBounds } from '../utils/daterange'
 
 /**
- * Fetch all prospect sessions (KO, SGA, KOFU, Prospect Session)
+ * Fetch all prospect sessions (Prospect Session, Intro Session, Followup Session)
  * Optionally filtered by date range (based on created_at)
  */
 export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promise<Session[]> {
-  const prospectTypes: SessionType[] = ['KO', 'SGA', 'KOFU', 'Prospect Session']
+  const prospectTypes: SessionType[] = ['Prospect Session', 'Intro Session', 'Followup Session']
   
   let query = supabase
     .from('sessions')
@@ -55,7 +55,7 @@ export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBou
 /**
  * Calculate show rate based on prospect sessions
  * Show rate = completed sessions / (completed + cancelled sessions) * 100
- * Only considers prospect sessions: KO, SGA, KOFU, Prospect Session
+ * Only considers prospect sessions: Prospect Session, Intro Session, Followup Session
  * Optionally filtered by date range
  */
 export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number> {

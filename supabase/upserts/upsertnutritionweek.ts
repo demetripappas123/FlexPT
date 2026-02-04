@@ -2,7 +2,7 @@ import { supabase } from '@/supabase/supabaseClient'
 import { NutritionWeek } from '@/supabase/fetches/fetchnutritionweeks'
 
 export type NutritionWeekInput = {
-  id?: number
+  id?: string // uuid
   program_id: string
   week_number: number
 }
@@ -57,7 +57,7 @@ export async function upsertNutritionWeek(week: NutritionWeekInput): Promise<Nut
   }
 }
 
-export async function deleteNutritionWeek(weekId: number): Promise<boolean> {
+export async function deleteNutritionWeek(weekId: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('nutrition_weeks')

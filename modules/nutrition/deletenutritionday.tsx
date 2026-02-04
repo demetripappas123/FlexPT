@@ -3,9 +3,9 @@ import { deleteNutritionDay } from "@/supabase/upserts/upsertnutritionday"
 import { Trash2 } from "lucide-react"
 
 type DeleteNutritionDayDialogProps = {
-  dayId: number
+  dayId: string
   dayTitle: string
-  onDeleted: (dayId: number) => void
+  onDeleted: (dayId: string) => void
   children?: React.ReactNode
 }
 

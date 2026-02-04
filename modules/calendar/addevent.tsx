@@ -276,11 +276,10 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
             }}
             className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           >
-            <option>KO</option>
-            <option>KOFU</option>
-            <option>SGA</option>
             <option>Client Session</option>
             <option>Prospect Session</option>
+            <option>Intro Session</option>
+            <option>Followup Session</option>
           </select>
 
           {/* Person dropdown */}

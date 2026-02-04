@@ -57,7 +57,7 @@ export default function MealList({ assignedMeals, personId, onMealUpdate }: Meal
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-lg font-semibold text-foreground">
-                    {meal.meal?.name || 'Meal'}
+                    {meal.meal_name || 'Meal'}
                   </h3>
                   <span
                     className={`px-2 py-1 text-xs rounded border ${
@@ -89,10 +89,10 @@ export default function MealList({ assignedMeals, personId, onMealUpdate }: Meal
               </div>
             </div>
 
-            {meal.meal?.foods && meal.meal.foods.length > 0 ? (
+            {meal.foods && meal.foods.length > 0 ? (
               <div className="space-y-2 mt-4">
                 <h4 className="text-sm font-medium text-foreground">Foods:</h4>
-                {meal.meal.foods.map((food, idx) => (
+                {meal.foods.map((food, idx) => (
                   <div
                     key={food.id || idx}
                     className="bg-muted rounded-md p-2 text-sm"

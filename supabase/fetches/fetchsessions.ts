@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 
-export type SessionType = 'KO' | 'SGA' | 'KOFU' | 'Client Session' | 'Prospect Session'
+export type SessionType = 'Client Session' | 'Prospect Session' | 'Intro Session' | 'Followup Session'
 export type SessionStatus = 'pending' | 'in_progress' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
 
 export interface Session {

@@ -1,7 +1,7 @@
 'use client'
 
 import { supabase } from '@/supabase/supabaseClient'
-import { fetchDayMealFoods, DayMealFood } from './fetchdaymealfoods'
+import { fetchMealsTemplatesFoods, MealsTemplatesFood } from './fetchmealstemplatesfoods'
 
 export type MealTemplate = {
   id: string // uuid
@@ -9,24 +9,22 @@ export type MealTemplate = {
   trainer_id: string | null
   created_at: string
   updated_at: string
-  foods: DayMealFood[] // Foods from meals_foods_programmed
+  foods: MealsTemplatesFood[] // Foods from meals_templates_foods
 }
 
 /**
  * Fetch meal templates for the current trainer
- * Meal templates are day_meals where nutrition_day is null and meal_template_id is null
- * (or they could be in a separate meal_templates table - adjust as needed)
+ * Meal templates are stored in the meals_templates table
  */
 export async function fetchMealTemplates(trainerId: string | null): Promise<MealTemplate[]> {
   try {
     if (!trainerId) return []
 
-    // Fetch meals that are templates (nutrition_day is null, indicating they're templates)
-    // Or if there's a separate meal_templates table, query that instead
+    // Fetch meal templates from the meals_templates table
     const { data, error } = await supabase
-      .from('day_meals')
+      .from('meals_templates')
       .select('*')
-      .is('nutrition_day', null) // Templates don't belong to a specific day
+      .eq('trainer_id', trainerId)
       .order('name', { ascending: true })
 
     if (error) {
@@ -36,10 +34,10 @@ export async function fetchMealTemplates(trainerId: string | null): Promise<Meal
 
     if (!data || data.length === 0) return []
 
-    // Fetch foods for all templates
+    // Fetch foods for all templates (from meals_templates_foods)
     const mealIds = data.map(meal => meal.id)
-    const mealFoods = await fetchDayMealFoods(mealIds)
-    const foodsByMealId = new Map<string, DayMealFood[]>()
+    const mealFoods = await fetchMealsTemplatesFoods(mealIds)
+    const foodsByMealId = new Map<string, MealsTemplatesFood[]>()
     mealFoods.forEach(food => {
       if (!foodsByMealId.has(food.meal_id)) {
         foodsByMealId.set(food.meal_id, [])

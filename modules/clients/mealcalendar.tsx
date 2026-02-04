@@ -210,7 +210,7 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium truncate">
-                        {getStatusIcon(meal.status)} {meal.meal?.name || 'Meal'}
+                        {getStatusIcon(meal.status)} {meal.meal_name || 'Meal'}
                       </span>
                       {meal.status === 'pending' && (
                         <button
@@ -222,9 +222,9 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
                         </button>
                       )}
                     </div>
-                    {meal.meal?.foods && meal.meal.foods.length > 0 && (
+                    {meal.foods && meal.foods.length > 0 && (
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {meal.meal.foods.length} food{meal.meal.foods.length !== 1 ? 's' : ''}
+                        {meal.foods.length} food{meal.foods.length !== 1 ? 's' : ''}
                       </div>
                     )}
                   </div>

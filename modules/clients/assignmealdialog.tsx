@@ -10,8 +10,10 @@ import { fetchUserFoods } from '@/supabase/fetches/fetchuserfoods'
 import { fetchCommunityFoods } from '@/supabase/fetches/fetchcommunityfoods'
 import { fetchFoodUnits, FoodUnit } from '@/supabase/fetches/fetchfoodunits'
 import { upsertAssignedMeal } from '@/supabase/upserts/upsertassignedmeal'
-import { upsertDayMeal } from '@/supabase/upserts/upsertdaymeal'
-import { upsertDayMealFood } from '@/supabase/upserts/upsertdaymealfood'
+import { upsertMealsTemplatesFood } from '@/supabase/upserts/upsertmealstemplatesfood'
+import { upsertMealsOccurancesFood } from '@/supabase/upserts/upsertmealsoccurancesfood'
+import { fetchMealsTemplatesFoods } from '@/supabase/fetches/fetchmealstemplatesfoods'
+import { fetchDayMealFoods } from '@/supabase/fetches/fetchdaymealfoods'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -229,7 +231,7 @@ export default function AssignMealDialogContent({
           return
         }
       } else {
-        // Create new meal on the spot
+        // Create new meal on the spot - create directly as occurrence
         if (!mealName.trim()) {
           alert('Please enter a meal name')
           return
@@ -243,59 +245,80 @@ export default function AssignMealDialogContent({
           return
         }
 
-        // Create meal on the spot - we'll insert directly to allow null nutrition_day
-        const { data: newMealData, error: mealError } = await supabase
-          .from('day_meals')
-          .insert([{
-            name: mealName.trim(),
-            nutrition_day: null, // Standalone meal, not tied to a nutrition day
-            meal_template_id: null,
-            meal_time: null,
-            meal_number: null,
-            updated_at: new Date().toISOString(),
-          }])
-          .select()
-          .single()
+        // Create meals_occurances entry directly (with a placeholder meal_id - we'll use the occurrence id itself)
+        // For "create on spot", we don't reference a template or program meal
+        const assignedMeal = await upsertAssignedMeal({
+          person_id: personId,
+          meal_id: '', // Will be set to occurrence id for on-the-spot meals
+          assigned_date: mealDate,
+          status: 'pending',
+        })
 
-        if (mealError || !newMealData) {
-          console.error('Error creating meal:', mealError)
+        if (!assignedMeal) {
           alert('Error creating meal. Please try again.')
           return
         }
 
-        const newMeal = {
-          ...newMealData,
-          foods: [],
-        } as DayMeal
-
-        if (!newMeal) {
-          alert('Error creating meal. Please try again.')
-          return
-        }
-
-        mealId = newMeal.id
-
-        // Create foods for the meal
+        // For on-the-spot meals, use the occurrence id as the meal reference
+        // Create foods directly in meals_occurances_foods
         for (const food of foods) {
           const selectedFood = foodLibrary.find(f => f.id === food.food_id!)
-          // Food id in foods table is string, but food_id in meals_foods_programmed expects int4 (fdc_id)
-          await upsertDayMealFood({
-            meal_id: mealId,
+          await upsertMealsOccurancesFood({
+            meal_id: assignedMeal.id, // meals_occurances.id
             food_id: selectedFood?.fdc_id || null,
             food_name: selectedFood?.description || food.food_name || null,
             amount: food.amount!,
             unit: food.unit!,
           })
         }
+
+        onMealAssigned()
+        return
       }
 
-      // Assign the meal
-      await upsertAssignedMeal({
+      // For program or template meals, assign and copy foods
+      const assignedMeal = await upsertAssignedMeal({
         person_id: personId,
         meal_id: mealId,
         assigned_date: mealDate,
         status: 'pending',
       })
+
+      // Copy foods to meals_occurances_foods for this occurrence
+      if (assignedMeal) {
+        let sourceFoods: Array<{ food_id: number | null; food_name: string | null; amount: number | null; unit: string | null }> = []
+        
+        if (mealOption === 'program') {
+          // Get foods from day_meals (meal_foods_programmed)
+          const dayMealFoods = await fetchDayMealFoods([mealId])
+          sourceFoods = dayMealFoods.map(f => ({
+            food_id: f.food_id,
+            food_name: f.food_name,
+            amount: f.amount,
+            unit: f.unit,
+          }))
+        } else if (mealOption === 'template') {
+          // Get foods from meals_templates (meals_templates_foods)
+          const templateFoods = await fetchMealsTemplatesFoods([mealId])
+          sourceFoods = templateFoods.map(f => ({
+            food_id: f.food_id,
+            food_name: f.food_name,
+            amount: f.amount,
+            unit: f.unit,
+          }))
+        }
+
+        // Copy foods to meals_occurances_foods
+        for (const food of sourceFoods) {
+          await upsertMealsOccurancesFood({
+            meal_id: assignedMeal.id, // meals_occurances.id
+            food_id: food.food_id,
+            food_name: food.food_name,
+            amount: food.amount,
+            unit: food.unit,
+          })
+        }
+      }
 
       onMealAssigned()
     } catch (err) {

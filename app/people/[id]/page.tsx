@@ -73,7 +73,7 @@ export default function PersonPage() {
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
-  const [workoutView, setWorkoutView] = useState<'list' | 'calendar'>('list')
+  const [workoutView, setWorkoutView] = useState<'list' | 'calendar'>('calendar')
   const [assignProgramWorkoutOpen, setAssignProgramWorkoutOpen] = useState(false)
   const [assignProgramWorkoutDate, setAssignProgramWorkoutDate] = useState<string | undefined>(undefined)
   
@@ -111,7 +111,7 @@ export default function PersonPage() {
   const [contractsLoading, setContractsLoading] = useState(false)
   
   // Meal view state
-  const [mealView, setMealView] = useState<'list' | 'calendar'>('list')
+  const [mealView, setMealView] = useState<'list' | 'calendar'>('calendar')
   const [nutritionSubTab, setNutritionSubTab] = useState<'overview' | 'meals'>('overview')
   const [assignMealOpen, setAssignMealOpen] = useState(false)
   const [assignMealDate, setAssignMealDate] = useState<string | undefined>(undefined)

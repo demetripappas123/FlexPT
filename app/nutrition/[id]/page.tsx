@@ -31,7 +31,7 @@ export default function NutritionProgramPage() {
   const [foodUnits, setFoodUnits] = useState<FoodUnit[]>([])
 
   // For controlling the AddDayDialog per week
-  const [activeWeekId, setActiveWeekId] = useState<number | null>(null)
+  const [activeWeekId, setActiveWeekId] = useState<string | null>(null)
   // For controlling edit mode - stores the day being edited
   const [editingDayId, setEditingDayId] = useState<number | null>(null)
   // For editing meals
@@ -117,29 +117,36 @@ export default function NutritionProgramPage() {
     date: string | null
     meals: Array<{
       meal_time: string | null
-      food_id: number | null
-      portion_size: number | null
-      portion_unit: number | null // Now stores food_unit id
-      calories: number | null
-      protein_g: number | null
-      carbs_g: number | null
-      fat_g: number | null
+      name: string | null
+      foods: Array<{
+        food_id: string | null // Food id from foods table (string)
+        food_name: string | null
+        amount: number | null
+        unit: string | null // food_unit id
+      }>
       notes: string | null
     }>
-    dayId?: number
+    dayId?: string
   }) => {
     const isEditMode = !!payload.dayId
 
     try {
-      let dayId: number
+      let dayId: string
 
       if (isEditMode) {
         // EDIT MODE: Update existing day
-        if (!payload.dayId) return
+        if (!payload.dayId) {
+          console.error('No day ID provided for edit mode')
+          return
+        }
 
         const week = weeks.find(w => w.days.some(d => d.id === payload.dayId))
-        if (!week) return
+        if (!week) {
+          console.error('Week not found for day ID:', payload.dayId)
+          return
+        }
 
+        // STEP 1: Update the nutrition_day entry
         const updatedDay = await upsertNutritionDay({
           id: payload.dayId,
           nutrition_week_id: week.id,
@@ -147,7 +154,7 @@ export default function NutritionProgramPage() {
         })
         
         if (!updatedDay) {
-          throw new Error('Failed to update day')
+          throw new Error('Failed to update nutrition day')
         }
         dayId = updatedDay.id
 
@@ -165,50 +172,81 @@ export default function NutritionProgramPage() {
         }
       } else {
         // ADD MODE: Create new day
-        if (!activeWeekId) return
+        if (!activeWeekId) {
+          console.error('No active week ID')
+          return
+        }
 
+        // STEP 1: Create the nutrition_day entry (references nutrition_weeks.id)
+        console.log('Creating nutrition day for week:', activeWeekId)
         const newDay = await upsertNutritionDay({
           nutrition_week_id: activeWeekId,
           day_of_week: payload.dayOfWeek,
         })
         
         if (!newDay) {
-          throw new Error('Failed to create day')
+          throw new Error('Failed to create nutrition day')
         }
         dayId = newDay.id
+        console.log('Created nutrition day with ID:', dayId)
       }
 
-      // Add meals
+      // STEP 2: Create all meals (day_meals entries that reference nutrition_days.id)
+      console.log('Creating meals for day:', dayId)
       for (let i = 0; i < payload.meals.length; i++) {
         const meal = payload.meals[i]
         
-        // Create the meal first
+        // Create the meal entry in day_meals
         const createdMeal = await upsertDayMeal({
           nutrition_day: dayId,
-          name: meal.meal_time || `Meal ${i + 1}`,
+          name: meal.name || `Meal ${i + 1}`, // Don't use meal_time as fallback - it's a time value, not a name
           description: meal.notes || null,
-          meal_time: meal.meal_time,
+          meal_time: meal.meal_time || null, // This should be a valid time string (HH:MM:SS) or null
           meal_number: i + 1,
           meal_template_id: null,
         })
         
         if (!createdMeal) {
-          console.error('Failed to create meal')
+          console.error(`Failed to create meal ${i + 1}`)
           continue
         }
-        
-        // Then create the food entry for this meal if food_id is provided
-        if (meal.food_id) {
-          const food = foodLibrary.find(f => f.id === meal.food_id)
-          await upsertDayMealFood({
-            meal_id: createdMeal.id,
-            food_id: meal.food_id,
-            food_name: food?.description || null,
-            amount: meal.portion_size,
-            unit: meal.portion_unit, // food_unit id
-          })
+        console.log(`Created meal ${i + 1} with ID:`, createdMeal.id)
+
+        // STEP 3: Create all food entries for this meal (meal_foods_programmed entries that reference day_meals.id)
+        if (meal.foods && meal.foods.length > 0) {
+          console.log(`Creating ${meal.foods.length} foods for meal ${i + 1}`)
+          for (const food of meal.foods) {
+            if (food.food_id || food.food_name) {
+              // Find the food in library to get fdc_id
+              const foodFromLibrary = food.food_id ? foodLibrary.find(f => f.id === food.food_id) : null
+              
+              const foodResult = await upsertDayMealFood({
+                meal_id: createdMeal.id, // Reference to day_meals.id
+                food_id: foodFromLibrary?.id || null, // Use foods.id (UUID string), not fdc_id
+                food_name: food.food_name || foodFromLibrary?.description || null,
+                amount: food.amount !== null && food.amount !== undefined ? Number(food.amount) : null, // Ensure it's a number (int4)
+                unit: food.unit, // food_unit id as string
+              })
+              
+              if (!foodResult) {
+                console.error(`Failed to create food for meal ${i + 1}:`, {
+                  food_name: food.food_name || food.food_id,
+                  food_id: foodFromLibrary?.fdc_id,
+                  amount: food.amount,
+                  unit: food.unit,
+                  meal_id: createdMeal.id
+                })
+              } else {
+                console.log(`Created food for meal ${i + 1}:`, food.food_name || food.food_id)
+              }
+            }
+          }
+        } else {
+          console.log(`No foods to add for meal ${i + 1}`)
         }
       }
+
+      console.log('Successfully completed add day workflow')
 
       // Refresh weeks to show the updated/new day
       await refreshWeeks()
@@ -228,7 +266,7 @@ export default function NutritionProgramPage() {
     }
   }
 
-  const handleDeleteDay = async (dayId: number) => {
+  const handleDeleteDay = async (dayId: string) => {
     try {
       await refreshWeeks()
     } catch (err) {
@@ -327,7 +365,7 @@ export default function NutritionProgramPage() {
                               <div key={meal.id} className="text-xs border-l-2 pl-2 border-border">
                                 <div className="font-medium text-foreground">
                                   {meal.name || (meal.meal_time 
-                                    ? new Date(meal.meal_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    ? new Date(`2000-01-01T${meal.meal_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                     : meal.meal_number 
                                       ? `Meal ${meal.meal_number}`
                                       : 'Meal')}
