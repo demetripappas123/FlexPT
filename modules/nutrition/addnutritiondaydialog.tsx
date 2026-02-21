@@ -219,64 +219,70 @@ export default function AddNutritionDayDialog({
     return food?.description || ""
   }
 
+  // Default dialog rendering
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-card border-border text-card-foreground">
-        <DialogHeader>
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[70vh] max-h-[70vh] overflow-hidden bg-card border-border text-card-foreground flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-foreground">
             {dayId ? "Edit Nutrition Day" : "Add Nutrition Day"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Day info */}
-        <div className="space-y-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-foreground">Day of Week</label>
-            <select
-              value={dayOfWeek}
-              onChange={(e) => setDayOfWeek(e.target.value)}
-              className="w-full px-3 py-2 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday">Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-              <option value="Saturday">Saturday</option>
-              <option value="Sunday">Sunday</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Meals */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">Meals</label>
-            <Button
-              type="button"
-              onClick={addMeal}
-              variant="outline"
-              size="sm"
-              className="bg-muted text-foreground border-border hover:bg-muted/80"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Meal
-            </Button>
-          </div>
-
-          {meals.map((meal, mealIndex) => (
-            <div key={mealIndex} className="border border-border p-4 rounded-lg relative bg-background">
-              <button
-                onClick={() => removeMeal(mealIndex)}
-                className="absolute right-2 top-2 text-destructive hover:text-destructive/80 cursor-pointer"
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Day info */}
+          <div className="space-y-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-foreground">Day of Week</label>
+              <select
+                value={dayOfWeek}
+                onChange={(e) => setDayOfWeek(e.target.value)}
+                className="w-full px-3 py-2 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <Trash size={16} />
-              </button>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+          </div>
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+          {/* Meals */}
+          <div className="flex-1 flex flex-col space-y-4 min-h-0">
+            <div className="flex items-center justify-between flex-shrink-0">
+              <label className="text-sm font-medium text-foreground">Meals</label>
+              <Button
+                type="button"
+                onClick={addMeal}
+                variant="outline"
+                size="sm"
+                className="bg-muted text-foreground border-border hover:bg-muted/80"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Meal
+              </Button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 flex-1 min-h-0">
+              {meals.map((meal, mealIndex) => (
+                <div key={mealIndex} className="border border-border p-3 rounded-md bg-background min-w-[280px] max-w-[280px] flex-shrink-0 relative flex flex-col">
+              <div className="absolute top-2 right-2">
+                <button
+                  onClick={() => removeMeal(mealIndex)}
+                  className="text-destructive hover:text-destructive/80 cursor-pointer"
+                  title="Remove meal"
+                >
+                  <Trash size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-3 pr-6">
+                <div className="space-y-2">
                   <div>
-                    <label className="text-sm text-foreground">Meal Name</label>
+                    <label className="text-xs font-medium text-foreground">Meal Name</label>
                     <Input
                       value={meal.name || ""}
                       onChange={(e) => {
@@ -284,12 +290,12 @@ export default function AddNutritionDayDialog({
                         updateMeal(mealIndex, "name", value)
                       }}
                       placeholder="e.g. Breakfast, Lunch, Dinner"
-                      className="bg-input text-foreground border-border placeholder-muted-foreground"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="text-sm text-foreground">Meal Time (optional)</label>
+                    <label className="text-xs font-medium text-foreground">Meal Time (optional)</label>
                     <Input
                       type="time"
                       value={meal.meal_time || ""}
@@ -297,12 +303,12 @@ export default function AddNutritionDayDialog({
                         const value = e.target.value || null
                         updateMeal(mealIndex, 'meal_time', value)
                       }}
-                      className="bg-input text-foreground border-border placeholder-muted-foreground"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="text-sm text-foreground">Add from Template</label>
+                    <label className="text-xs font-medium text-foreground">Add from Template</label>
                     {loadingTemplates ? (
                       <p className="text-xs text-muted-foreground">Loading templates...</p>
                     ) : templates.length === 0 ? (
@@ -316,7 +322,7 @@ export default function AddNutritionDayDialog({
                             e.target.value = ""
                           }
                         }}
-                        className="w-full px-3 py-2 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full px-2 py-1.5 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                       >
                         <option value="">Select template...</option>
                         {templates.map(template => (
@@ -485,10 +491,12 @@ export default function AddNutritionDayDialog({
                 </div>
               </div>
             </div>
-          ))}
+              ))}
+            </div>
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 border-t border-border pt-4 mt-4">
           <Button
             onClick={() => onOpenChange(false)}
             variant="outline"

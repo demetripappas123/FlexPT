@@ -46,9 +46,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0); /* Pure white */
+  --background: oklch(0.968 0.007 247.896); /* Off-white / gray – main content area */
   --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(0.968 0.007 247.896); /* Light gray/off-white for contrast */
+  --card: oklch(1 0 0); /* White – cards and divs on top of main area */
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
@@ -69,11 +69,11 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar: oklch(1 0 0); /* Pure white */
   --sidebar-foreground: oklch(0.129 0.042 264.695);
   --sidebar-primary: oklch(0.208 0.042 265.755);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent: oklch(0.968 0.007 247.896); /* Light gray hover on white */
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
@@ -85,7 +85,7 @@
   --bg-hover: #f0f0f0;
   --bg-active: #e5e5e5;
   --text-primary: #111827;
-  --text-secondary: #374151;
+  --text-secondary: #1f2937;
   --text-tertiary: #6b7280;
   --text-muted: #9ca3af;
   --border-primary: #e5e7eb;
@@ -101,11 +101,11 @@
 }
 
 html.dark {
-  --background: #111111; /* Charcoal black */
+  --background: #1f1f1f; /* Dark gray – main content area */
   --foreground: #ffffff; /* White text */
-  --card: #1f1f1f; /* Dark gray card */
+  --card: #111111; /* Charcoal black – cards and divs on top of main area */
   --card-foreground: #ffffff; /* White text on card */
-  --popover: #1f1f1f; /* Dark gray popover */
+  --popover: #111111; /* Match card – dialogs/dropdowns */
   --popover-foreground: #ffffff; /* White text on popover */
   --primary: #f97316; /* Orange #f97316 */
   --primary-foreground: #ffffff; /* White */

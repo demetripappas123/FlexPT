@@ -1,13 +1,19 @@
 import { supabase } from '../supabaseClient'
 
 export interface Package {
-  id: string
+  id: string // uuid
   name: string
-  units_per_cycle: number
-  unit_cost: number
-  billing_cycle_weeks: number
-  session_duration_minutes: number | null
-  created_at: string
+  description: string | null
+  cycle_length_weeks: number | null
+  package_length_weeks: number
+  default_cost_per_cycle: number | null
+  is_active: boolean
+  notes: string | null
+  'until cancelled': boolean
+  pif: boolean
+  pif_cost: number | null
+  created_at?: string
+  updated_at?: string
 }
 
 /**
@@ -17,7 +23,7 @@ export async function fetchPackages(): Promise<Package[]> {
   const { data, error } = await supabase
     .from('packages')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order('name', { ascending: true })
 
   if (error) {
     console.error('Error fetching packages:', error)

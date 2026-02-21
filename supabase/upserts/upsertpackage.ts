@@ -4,10 +4,15 @@ import { Package } from '../fetches/fetchpackages'
 export interface PackageFormData {
   id?: string
   name: string
-  unit_cost: number
-  units_per_cycle: number
-  billing_cycle_weeks: number
-  session_duration_minutes: number | null
+  description?: string | null
+  cycle_length_weeks: number | null
+  package_length_weeks: number
+  default_cost_per_cycle: number | null
+  is_active?: boolean
+  notes?: string | null
+  'until cancelled'?: boolean
+  pif?: boolean
+  pif_cost?: number | null
 }
 
 /**
@@ -16,10 +21,15 @@ export interface PackageFormData {
 export async function upsertPackage(packageData: PackageFormData): Promise<Package> {
   const data: any = {
     name: packageData.name,
-    unit_cost: packageData.unit_cost,
-    units_per_cycle: packageData.units_per_cycle,
-    billing_cycle_weeks: packageData.billing_cycle_weeks,
-    session_duration_minutes: packageData.session_duration_minutes ?? null,
+    description: packageData.description ?? null,
+    cycle_length_weeks: packageData.cycle_length_weeks ?? null,
+    package_length_weeks: packageData.package_length_weeks,
+    default_cost_per_cycle: packageData.default_cost_per_cycle ?? null,
+    is_active: packageData.is_active ?? true,
+    notes: packageData.notes ?? null,
+    'until cancelled': packageData['until cancelled'] ?? false,
+    pif: packageData.pif ?? false,
+    pif_cost: packageData.pif_cost ?? null,
   }
 
   if (packageData.id) {

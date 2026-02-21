@@ -1,22 +1,32 @@
 import { supabase } from '../supabaseClient'
 
-export type ContractStatus = 'active' | 'cancelled' | 'frozen'
-
+/**
+ * contracts table: package-like columns + person_id, trainer_id, start_date.
+ * Columns: id, name, description, cycle_length_weeks, package_length_weeks,
+ * default_cost_per_cycle, is_active, notes, pif, pif_cost, until cancelled,
+ * start_date, person_id, trainer_id, created_at, updated_at.
+ */
 export interface Contract {
   id: string
   person_id: string
-  package_id: string
-  duration: number
-  status: ContractStatus
-  first_billing_date: string | null
-  auto_renew: boolean
-  documents: any | null // JSON column
+  trainer_id: string | null
+  start_date: string | null
+  name: string
+  description: string | null
+  cycle_length_weeks: number | null
+  package_length_weeks: number
+  default_cost_per_cycle: number | null
+  is_active: boolean
+  notes: string | null
+  pif: boolean
+  pif_cost: number | null
+  'until cancelled': boolean
   created_at?: string
+  updated_at?: string
 }
 
 /**
- * Fetch all contracts
- * Optionally filter by trainer_id
+ * Fetch all contracts, optionally filter by trainer_id
  */
 export async function fetchContracts(trainerId?: string | null): Promise<Contract[]> {
   let query = supabase

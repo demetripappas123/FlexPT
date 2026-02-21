@@ -22,3 +22,4 @@ export async function getTrainerId(): Promise<string | null> {
 
 
 
+

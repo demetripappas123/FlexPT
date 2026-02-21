@@ -5,8 +5,14 @@ import { upsertPersonPackage } from './upsertpersonpackage'
 /**
  * Increment the used_units for a person_package
  * This should be called when a session is completed
+ * DISABLED: person_packages table has been removed for architecture rework
  */
 export async function incrementPersonPackageUsedUnits(personPackageId: string): Promise<void> {
+  // DISABLED: person_packages table removed - no-op
+  console.warn('incrementPersonPackageUsedUnits is disabled - person_packages table has been removed for architecture rework')
+  return
+  
+  /* ORIGINAL CODE - KEPT FOR REFERENCE
   const personPackage = await fetchPersonPackageById(personPackageId)
   
   if (!personPackage) {
@@ -27,6 +33,7 @@ export async function incrementPersonPackageUsedUnits(personPackageId: string): 
     used_units: newUsedUnits,
     status: personPackage.status,
   })
+  */
 }
 
 

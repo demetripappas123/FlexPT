@@ -10,6 +10,17 @@ type ContractsProps = {
 }
 
 export default function Contracts({ contracts, packages }: ContractsProps) {
+  // DISABLED: Contracts functionality temporarily disabled for architecture rework
+  return (
+    <div className="p-4 bg-card border border-border rounded-md">
+      <h2 className="text-lg font-semibold text-foreground mb-4">Contracts</h2>
+      <p className="text-muted-foreground text-sm">
+        Contracts functionality is temporarily disabled - architecture rework in progress
+      </p>
+    </div>
+  )
+  
+  /* ORIGINAL CODE - KEPT FOR REFERENCE
   const packageMap = new Map(packages.map(pkg => [pkg.id, pkg]))
 
   // Sort contracts: active first, then by created_at descending
@@ -120,6 +131,7 @@ export default function Contracts({ contracts, packages }: ContractsProps) {
       </div>
     </div>
   )
+  */
 }
 
 

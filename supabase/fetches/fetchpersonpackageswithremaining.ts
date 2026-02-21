@@ -7,8 +7,14 @@ export interface PersonPackageWithRemaining extends PersonPackage {
 /**
  * Fetch person_packages for a person that are active and have remaining sessions (used_units < total_units)
  * Optionally filter by trainer_id
+ * DISABLED: person_packages table has been removed for architecture rework
  */
 export async function fetchPersonPackagesWithRemaining(personId: string, trainerId?: string | null): Promise<PersonPackageWithRemaining[]> {
+  // DISABLED: person_packages table removed - returning empty array
+  console.warn('fetchPersonPackagesWithRemaining is disabled - person_packages table has been removed for architecture rework')
+  return []
+  
+  /* ORIGINAL CODE - KEPT FOR REFERENCE
   // Fetch all person_packages for this specific person
   // Note: fetchPersonPackagesByPersonId doesn't filter by trainer_id, 
   // so we filter client-side if trainerId is provided
@@ -33,5 +39,6 @@ export async function fetchPersonPackagesWithRemaining(personId: string, trainer
     ...pp,
     remaining_units: pp.total_units - pp.used_units,
   }))
+  */
 }
 

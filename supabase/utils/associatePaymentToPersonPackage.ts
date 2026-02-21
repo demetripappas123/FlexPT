@@ -9,12 +9,18 @@ import { fetchPersonById } from '../fetches/fetchpeople'
  * 2. If not, check for the earliest future person_packages row with status = 'pending'
  * 3. Only if that doesn't exist, create a new row
  * Returns the person_package_id that was associated
+ * DISABLED: person_packages table has been removed for architecture rework
  */
 export async function associatePaymentToPersonPackage(
   personId: string,
   paymentDate: string,
   amount: number
 ): Promise<string> {
+  // DISABLED: person_packages table removed - throwing error
+  console.warn('associatePaymentToPersonPackage is disabled - person_packages table has been removed for architecture rework')
+  throw new Error('Payment association functionality is temporarily disabled - architecture rework in progress')
+  
+  /* ORIGINAL CODE - KEPT FOR REFERENCE
   // Convert payment date to Date object
   const paymentDateObj = new Date(paymentDate)
   paymentDateObj.setHours(0, 0, 0, 0) // Normalize to start of day
@@ -160,5 +166,6 @@ export async function associatePaymentToPersonPackage(
   })
 
   return newPersonPackage.id
+  */
 }
 

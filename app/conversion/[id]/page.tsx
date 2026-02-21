@@ -7,14 +7,16 @@ import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { Person } from '@/supabase/fetches/fetchpeople'
 import { fetchPackages, Package } from '@/supabase/fetches/fetchpackages'
 import { upsertPackage } from '@/supabase/upserts/upsertpackage'
-import { upsertPersonPackage } from '@/supabase/upserts/upsertpersonpackage'
 import { upsertContract } from '@/supabase/upserts/upsertcontract'
+import { createPersonPackagesForContract } from '@/supabase/utils/createPersonPackagesForContract'
+import { useAuth } from '@/context/authcontext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
 export default function ConversionPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
   const id = params.id as string
   const [person, setPerson] = useState<Person | null>(null)
   const [loading, setLoading] = useState(true)
@@ -139,15 +141,12 @@ export default function ConversionPage() {
     setError(null)
     
     try {
-      // Create the contract
-      const billingDate = new Date(firstBillingDate)
+      // Create the contract (copies package fields into contract row)
       await upsertContract({
         person_id: person.id,
-        package_id: packageToUse.id,
-        duration: parseInt(contractDuration),
-        status: 'active',
-        first_billing_date: billingDate.toISOString(),
-        auto_renew: autoRenew,
+        trainer_id: user?.id ?? null,
+        start_date: firstBillingDate,
+        package: packageToUse,
       })
 
       // Convert prospect to client and link the package
@@ -161,20 +160,13 @@ export default function ConversionPage() {
         converted_at: new Date().toISOString(),
       })
 
-      // Calculate end date based on billing cycle weeks
-      const startDate = new Date(firstBillingDate)
-      const endDate = new Date(startDate)
-      endDate.setDate(endDate.getDate() + (packageToUse.billing_cycle_weeks * 7))
-
-      // Create person_package relationship with status 'pending'
-      await upsertPersonPackage({
-        person_id: person.id,
-        package_id: packageToUse.id,
-        start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        end_date: endDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        total_units: packageToUse.units_per_cycle,
-        used_units: 0,
-        status: 'pending',
+      // Create person_packages rows (one per service per obligation cycle) with status 'payment pending'
+      await createPersonPackagesForContract({
+        personId: person.id,
+        packageId: packageToUse.id,
+        trainerId: user?.id ?? null,
+        contractStartDate: firstBillingDate,
+        durationMonths: parseInt(contractDuration),
       })
 
       // Redirect to the person's page

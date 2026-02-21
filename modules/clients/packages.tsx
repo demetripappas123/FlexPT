@@ -10,6 +10,17 @@ type PackagesProps = {
 }
 
 export default function Packages({ personPackages, packages }: PackagesProps) {
+  // DISABLED: Packages functionality temporarily disabled for architecture rework
+  return (
+    <div className="p-4 bg-card border border-border rounded-md">
+      <h2 className="text-lg font-semibold text-foreground mb-4">Packages</h2>
+      <p className="text-muted-foreground text-sm">
+        Packages functionality is temporarily disabled - architecture rework in progress
+      </p>
+    </div>
+  )
+  
+  /* ORIGINAL CODE - KEPT FOR REFERENCE
   if (personPackages.length === 0) {
     return (
       <div className="p-4 bg-card border border-border rounded-md">
@@ -111,6 +122,7 @@ export default function Packages({ personPackages, packages }: PackagesProps) {
       </div>
     </div>
   )
+  */
 }
 
 
