@@ -54,3 +54,38 @@ export async function fetchPackageById(packageId: string): Promise<Package | nul
   return data
 }
 
+/**
+ * Fetch all packages assigned to a client (packages that have at least one person_package row for this person).
+ * Use this for the client payments page so the user can select from assigned packages when creating a payment.
+ */
+export async function fetchPackagesAssignedToClient(personId: string): Promise<Package[]> {
+  const { data: ppRows, error: ppError } = await supabase
+    .from('person_packages')
+    .select('package_id')
+    .eq('person_id', personId)
+
+  if (ppError) {
+    console.error('Error fetching person_packages for assigned packages:', ppError)
+    throw ppError
+  }
+
+  const packageIds = [...new Set((ppRows ?? []).map((r) => r.package_id).filter(Boolean))]
+  if (packageIds.length === 0) return []
+
+  const { data: packagesData, error: pkgError } = await supabase
+    .from('packages')
+    .select('*')
+    .in('id', packageIds)
+    .order('name', { ascending: true })
+
+  if (pkgError) {
+    console.error('Error fetching packages by ids:', pkgError)
+    throw pkgError
+  }
+
+  return packagesData ?? []
+}
+
+/** @deprecated Use fetchPackagesAssignedToClient */
+export const fetchAvailablePackagesForPerson = fetchPackagesAssignedToClient
+

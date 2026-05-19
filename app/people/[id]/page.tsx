@@ -240,21 +240,20 @@ export default function PersonPage() {
       if (activeTab !== 'payments' || !person) return
       const isClient = person.converted_at !== null && person.converted_at !== undefined
       if (!isClient) return
-      // If already loaded, don't reload
-      if (payments !== null && personPackages !== null && packages !== null) return
 
       setPaymentsLoading(true)
       try {
-        // Payments tab needs payments, personPackages, and packages
-        const [paymentsData, ppData, pkgData] = await Promise.all([
+        // Fetch payments, personPackages, packages, and this client's contracts (contracts = payment dropdown options)
+        const [paymentsData, ppData, pkgData, contractsData] = await Promise.all([
           fetchPaymentsByPersonId(person.id),
-          personPackages === null ? fetchPersonPackagesByPersonId(person.id) : Promise.resolve(personPackages),
+          fetchPersonPackagesByPersonId(person.id),
           packages === null ? fetchPackages() : Promise.resolve(packages),
+          fetchContractsByPersonId(person.id),
         ])
         setPayments(paymentsData)
-        // Update caches if they were null
-        if (personPackages === null) setPersonPackages(ppData)
+        setPersonPackages(ppData)
         if (packages === null) setPackages(pkgData)
+        setContracts(contractsData)
       } catch (err) {
         console.error('Error loading payments data:', err)
         setPayments([])
@@ -354,12 +353,14 @@ export default function PersonPage() {
   const handleRefreshPayments = async () => {
     if (!person) return
     try {
-      const [paymentsData, personPackagesData] = await Promise.all([
+      const [paymentsData, personPackagesData, contractsData] = await Promise.all([
         fetchPaymentsByPersonId(person.id),
         fetchPersonPackagesByPersonId(person.id),
+        fetchContractsByPersonId(person.id),
       ])
       setPayments(paymentsData || [])
       setPersonPackages(personPackagesData || [])
+      setContracts(contractsData || [])
     } catch (err) {
       console.error('Error reloading payments:', err)
     }
@@ -1289,10 +1290,11 @@ export default function PersonPage() {
               <p className="text-muted-foreground">Loading payments data...</p>
             </div>
           ) : (
-            <Payments 
-              payments={payments || []} 
-              personPackages={personPackages || []} 
+<Payments
+              payments={payments || []}
+              personPackages={personPackages || []}
               packages={packages || []}
+              contracts={contracts ?? []}
               personId={person.id}
               onPaymentAdded={handleRefreshPayments}
             />

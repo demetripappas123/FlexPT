@@ -1,0 +1,10 @@
+{
+  "jobs": [
+    {
+      "name": "create-next-person-packages-until-cancelled",
+      "schedule": "0 1 * * *",
+      "command": "SELECT public.create_next_person_packages_for_until_cancelled()",
+      "description": "For active 'until cancelled' contracts, create the next period's person_packages rows when the previous period has ended."
+    }
+  ]
+}

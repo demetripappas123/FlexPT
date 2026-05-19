@@ -3,44 +3,31 @@ import { supabase } from '../supabaseClient'
 export interface Payment {
   id: string
   person_package_id: string | null
+  trainer_id: string | null
   amount: number
   payment_date: string
   method: string | null
   notes: string | null
 }
 
+function applyTrainerFilter<T extends { eq: (col: string, val: string) => T }>(
+  query: T,
+  trainerId?: string | null
+): T {
+  if (trainerId) {
+    return query.eq('trainer_id', trainerId)
+  }
+  return query
+}
+
 /**
- * Fetch all payments
- * Optionally filter by trainer_id (through person_packages)
+ * Fetch all payments, optionally filtered by trainer_id on the payments row.
  */
 export async function fetchPayments(trainerId?: string | null): Promise<Payment[]> {
-  // If trainerId is provided, filter through person_packages
-  if (trainerId) {
-    const { fetchPersonPackages } = await import('./fetchpersonpackages')
-    const personPackages = await fetchPersonPackages(trainerId)
-    const personPackageIds = personPackages.map(pp => pp.id)
-    
-    if (personPackageIds.length === 0) return []
-    
-    const { data, error } = await supabase
-      .from('payments')
-      .select('*')
-      .in('person_package_id', personPackageIds)
-      .order('payment_date', { ascending: false })
+  let query = supabase.from('payments').select('*').order('payment_date', { ascending: false })
+  query = applyTrainerFilter(query, trainerId)
 
-    if (error) {
-      console.error('Error fetching payments:', error)
-      throw error
-    }
-
-    return data ?? []
-  }
-  
-  // No trainer filter
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .order('payment_date', { ascending: false })
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching payments:', error)
@@ -48,6 +35,37 @@ export async function fetchPayments(trainerId?: string | null): Promise<Payment[
   }
 
   return data ?? []
+}
+
+/**
+ * Sum payment amounts in a date range, optionally for one trainer.
+ */
+export async function sumPaymentsInDateRange(
+  startDate: Date,
+  endDate: Date,
+  trainerId?: string | null
+): Promise<number> {
+  let query = supabase
+    .from('payments')
+    .select('amount')
+    .gte('payment_date', startDate.toISOString())
+    .lte('payment_date', endDate.toISOString())
+
+  query = applyTrainerFilter(query, trainerId)
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error summing payments in date range:', error)
+    throw error
+  }
+
+  if (!data?.length) return 0
+
+  return data.reduce((sum, row) => {
+    const amount = Number(row.amount) || 0
+    return isNaN(amount) ? sum : sum + amount
+  }, 0)
 }
 
 /**
@@ -80,7 +98,7 @@ export async function fetchPaymentById(paymentId: string): Promise<Payment | nul
 
   if (error) {
     if (error.code === 'PGRST116') {
-      return null // Not found
+      return null
     }
     console.error('Error fetching payment:', error)
     throw error
@@ -90,10 +108,9 @@ export async function fetchPaymentById(paymentId: string): Promise<Payment | nul
 }
 
 /**
- * Fetch payments for a specific person (through person_packages)
+ * Fetch payments for a specific person (via person_packages.person_id).
  */
 export async function fetchPaymentsByPersonId(personId: string): Promise<Payment[]> {
-  // First, get all person_packages for this person
   const { data: personPackages, error: ppError } = await supabase
     .from('person_packages')
     .select('id')
@@ -104,13 +121,12 @@ export async function fetchPaymentsByPersonId(personId: string): Promise<Payment
     throw ppError
   }
 
-  if (!personPackages || personPackages.length === 0) {
+  if (!personPackages?.length) {
     return []
   }
 
-  const personPackageIds = personPackages.map(pp => pp.id)
+  const personPackageIds = personPackages.map((pp) => pp.id)
 
-  // Then fetch payments for those person_packages
   const { data, error } = await supabase
     .from('payments')
     .select('*')
@@ -124,4 +140,3 @@ export async function fetchPaymentsByPersonId(personId: string): Promise<Payment
 
   return data ?? []
 }
-

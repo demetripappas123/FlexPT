@@ -1,15 +1,12 @@
 import { supabase } from '../supabaseClient'
-import { Contract } from '../fetches/fetchcontracts'
+import { Contract, ContractStatus } from '../fetches/fetchcontracts'
 import { Package } from '../fetches/fetchpackages'
 
 /**
- * contracts table schema: package-like columns + person_id, trainer_id, start_date.
- * Columns: id, name, description, cycle_length_weeks, package_length_weeks,
- * default_cost_per_cycle, is_active, notes, pif, pif_cost, until cancelled,
- * start_date, person_id, trainer_id, created_at, updated_at.
+ * contracts table schema: includes status (active | frozen | cancelled).
  */
 export type ContractFormData =
-  | { id: string; person_id: string; trainer_id: string | null; start_date: string | null; name: string; description: string | null; cycle_length_weeks: number | null; package_length_weeks: number; default_cost_per_cycle: number | null; is_active: boolean; notes: string | null; pif: boolean; pif_cost: number | null; 'until cancelled': boolean }
+  | { id: string; person_id: string; trainer_id: string | null; start_date: string | null; status?: ContractStatus; package_id?: string | null; name: string; description: string | null; cycle_length_weeks: number | null; package_length_weeks: number; default_cost_per_cycle: number | null; is_active: boolean; notes: string | null; pif: boolean; pif_cost: number | null; 'until cancelled': boolean }
   | { person_id: string; trainer_id: string | null; start_date: string; package: Package }
 
 /** Normalize to date-only YYYY-MM-DD */
@@ -33,6 +30,8 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       person_id: contractData.person_id,
       trainer_id: contractData.trainer_id ?? null,
       start_date: toDateOnly(contractData.start_date),
+      status: contractData.status ?? 'active',
+      package_id: contractData.package_id ?? null,
       name: contractData.name,
       description: contractData.description ?? null,
       cycle_length_weeks: contractData.cycle_length_weeks ?? null,
@@ -50,6 +49,8 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       person_id: contractData.person_id,
       trainer_id: contractData.trainer_id ?? null,
       start_date: toDateOnly(contractData.start_date),
+      status: 'active',
+      package_id: pkg.id,
       name: pkg.name,
       description: pkg.description ?? null,
       cycle_length_weeks: pkg.cycle_length_weeks ?? null,

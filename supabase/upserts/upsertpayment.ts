@@ -3,8 +3,9 @@ import { supabase } from '../supabaseClient'
 export interface PaymentFormData {
   id?: string
   person_package_id?: string | null
+  trainer_id?: string | null
   amount: number
-  payment_date: string // ISO date string or timestamp
+  payment_date: string
   method?: string | null
   notes?: string | null
 }
@@ -13,14 +14,16 @@ export interface PaymentFormData {
  * Create or update a payment
  */
 export async function upsertPayment(payment: PaymentFormData): Promise<any> {
-  const data: any = {
+  const data: Record<string, unknown> = {
     amount: payment.amount,
     payment_date: payment.payment_date,
   }
 
-  // Only include optional fields if they have values
   if (payment.person_package_id !== undefined) {
     data.person_package_id = payment.person_package_id
+  }
+  if (payment.trainer_id !== undefined) {
+    data.trainer_id = payment.trainer_id
   }
   if (payment.method !== undefined && payment.method !== null) {
     data.method = payment.method
@@ -30,7 +33,6 @@ export async function upsertPayment(payment: PaymentFormData): Promise<any> {
   }
 
   if (payment.id) {
-    // Update existing payment
     const { data: updated, error } = await supabase
       .from('payments')
       .update(data)
@@ -44,20 +46,14 @@ export async function upsertPayment(payment: PaymentFormData): Promise<any> {
     }
 
     return updated
-  } else {
-    // Create new payment
-    const { data: created, error } = await supabase
-      .from('payments')
-      .insert([data])
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating payment:', error)
-      throw error
-    }
-
-    return created
   }
-}
 
+  const { data: created, error } = await supabase.from('payments').insert([data]).select().single()
+
+  if (error) {
+    console.error('Error creating payment:', error)
+    throw error
+  }
+
+  return created
+}

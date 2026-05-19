@@ -30,6 +30,10 @@ export default function ContractsPage() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
   // Assign form state
   const [selectedClientId, setSelectedClientId] = useState('')
@@ -73,6 +77,91 @@ export default function ContractsPage() {
     setAssignOpen(true)
   }
 
+  const handleFreeze = async (c: Contract) => {
+    setActionLoadingId(c.id)
+    setError(null)
+    try {
+      await upsertContract({
+        id: c.id,
+        person_id: c.person_id,
+        trainer_id: c.trainer_id,
+        start_date: c.start_date,
+        status: 'frozen',
+        package_id: c.package_id ?? null,
+        name: c.name,
+        description: c.description,
+        cycle_length_weeks: c.cycle_length_weeks,
+        package_length_weeks: c.package_length_weeks,
+        default_cost_per_cycle: c.default_cost_per_cycle,
+        is_active: c.is_active,
+        notes: c.notes,
+        pif: c.pif,
+        pif_cost: c.pif_cost,
+        'until cancelled': c['until cancelled'],
+      })
+      await loadData()
+    } catch (err) {
+      console.error('Error freezing contract:', err)
+      setError(err instanceof Error ? err.message : 'Failed to freeze contract')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleUnfreeze = async (c: Contract) => {
+    setActionLoadingId(c.id)
+    setError(null)
+    try {
+      await upsertContract({
+        id: c.id,
+        person_id: c.person_id,
+        trainer_id: c.trainer_id,
+        start_date: c.start_date,
+        status: 'active',
+        package_id: c.package_id ?? null,
+        name: c.name,
+        description: c.description,
+        cycle_length_weeks: c.cycle_length_weeks,
+        package_length_weeks: c.package_length_weeks,
+        default_cost_per_cycle: c.default_cost_per_cycle,
+        is_active: c.is_active,
+        notes: c.notes,
+        pif: c.pif,
+        pif_cost: c.pif_cost,
+        'until cancelled': c['until cancelled'],
+      })
+      await loadData()
+    } catch (err) {
+      console.error('Error unfreezing contract:', err)
+      setError(err instanceof Error ? err.message : 'Failed to unfreeze contract')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleDeleteClick = (c: Contract) => {
+    setContractToDelete(c)
+    setDeleteDialogOpen(true)
+    setError(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!contractToDelete) return
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteContract(contractToDelete.id)
+      setDeleteDialogOpen(false)
+      setContractToDelete(null)
+      await loadData()
+    } catch (err) {
+      console.error('Error deleting contract:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete contract')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleAssignSubmit = async () => {
     if (!user) return
     if (!selectedClientId) {
@@ -83,9 +172,15 @@ export default function ContractsPage() {
       setError('Please select a package')
       return
     }
+    const selectedPackage = packages.find((p) => p.id === selectedPackageId)
+    if (!selectedPackage) {
+      setError('Selected package not found')
+      return
+    }
+    const untilCancelled = selectedPackage['until cancelled'] === true
     const durationNum = parseInt(duration, 10)
-    if (!duration || isNaN(durationNum) || durationNum <= 0) {
-      setError('Duration must be greater than 0')
+    if (!untilCancelled && (!duration || isNaN(durationNum) || durationNum <= 0)) {
+      setError('Duration (months) must be greater than 0 for fixed-duration packages')
       return
     }
     if (!firstBillingDate) {
@@ -94,12 +189,6 @@ export default function ContractsPage() {
     }
     if (!startDate) {
       setError('Start date is required')
-      return
-    }
-
-    const selectedPackage = packages.find((p) => p.id === selectedPackageId)
-    if (!selectedPackage) {
-      setError('Selected package not found')
       return
     }
 
@@ -118,7 +207,8 @@ export default function ContractsPage() {
           packageId: selectedPackageId,
           trainerId: user.id,
           contractStartDate: startDate,
-          durationMonths: durationNum,
+          durationMonths: untilCancelled ? 0 : durationNum,
+          untilCancelled,
         })
       } catch (ppErr: unknown) {
         const msg = ppErr && typeof ppErr === 'object' && 'message' in ppErr ? String((ppErr as { message: unknown }).message) : 'Unknown error'
@@ -178,6 +268,12 @@ export default function ContractsPage() {
         </Button>
       </div>
 
+      {error && !assignOpen && (
+        <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
       {contracts.length === 0 ? (
         <div className="p-8 bg-card border border-border rounded-md text-center">
           <p className="text-muted-foreground">No contracts yet. Assign a package to a client to get started.</p>
@@ -193,8 +289,9 @@ export default function ContractsPage() {
                   <th className="text-left font-medium text-foreground px-4 py-3">Start date</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Package length</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Cycle length</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Active</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">PIF</th>
+                  <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -222,11 +319,54 @@ export default function ContractsPage() {
                         {c.cycle_length_weeks != null ? `${c.cycle_length_weeks} wk` : '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={c.is_active ? 'text-green-500 font-medium' : 'text-muted-foreground'}>
-                          {c.is_active ? 'Yes' : 'No'}
+                        <span className={
+                          (c.status ?? 'active') === 'active' ? 'text-green-500 font-medium' :
+                          (c.status ?? '') === 'frozen' ? 'text-amber-500 font-medium' :
+                          'text-muted-foreground'
+                        }>
+                          {(c.status ?? 'active') === 'active' ? 'Active' : (c.status ?? '') === 'frozen' ? 'Frozen' : 'Cancelled'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-foreground">{c.pif ? 'Yes' : 'No'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex gap-2 justify-end items-center">
+                          {!c.pif && (c.status ?? 'active') === 'active' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleFreeze(c)}
+                              disabled={actionLoadingId === c.id}
+                              className="cursor-pointer text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                              title="Freeze contract"
+                            >
+                              <Snowflake className="h-4 w-4 mr-1" />
+                              {actionLoadingId === c.id ? '…' : 'Freeze'}
+                            </Button>
+                          )}
+                          {!c.pif && (c.status ?? '') === 'frozen' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUnfreeze(c)}
+                              disabled={actionLoadingId === c.id}
+                              className="cursor-pointer text-green-600 border-green-600/50 hover:bg-green-600/10"
+                              title="Unfreeze contract"
+                            >
+                              <Play className="h-4 w-4 mr-1" />
+                              {actionLoadingId === c.id ? '…' : 'Unfreeze'}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteClick(c)}
+                            className="cursor-pointer text-destructive border-destructive/50 hover:bg-destructive/10"
+                            title="Delete contract"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
@@ -333,6 +473,34 @@ export default function ContractsPage() {
               className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Creating...' : 'Create contract'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => { if (!open) setContractToDelete(null); setDeleteDialogOpen(open) }}>
+        <DialogContent className="bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle>Delete contract</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the contract &quot;{contractToDelete?.name}&quot; for this client? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setDeleteDialogOpen(false); setContractToDelete(null) }}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="cursor-pointer disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

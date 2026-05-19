@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Payment } from '@/supabase/fetches/fetchpayments'
 import { PersonPackage } from '@/supabase/fetches/fetchpersonpackages'
 import { Package } from '@/supabase/fetches/fetchpackages'
+import { Contract } from '@/supabase/fetches/fetchcontracts'
 import { upsertPayment } from '@/supabase/upserts/upsertpayment'
-import { associatePaymentToPersonPackage } from '@/supabase/utils/associatePaymentToPersonPackage'
+import { validatePaymentAmountForPackage, applyPaymentToPersonPackages } from '@/supabase/utils/applyPaymentToPersonPackages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, X, Pencil, Trash } from 'lucide-react'
@@ -15,24 +16,42 @@ type PaymentsProps = {
   payments: Payment[]
   personPackages: PersonPackage[]
   packages: Package[]
+  /** Contracts for this client (person_id) – options for which contract the payment goes to */
+  contracts: Contract[]
   personId: string
   onPaymentAdded?: () => void
 }
 
-export default function Payments({ payments, personPackages, packages, personId, onPaymentAdded }: PaymentsProps) {
+export default function Payments({ payments, personPackages, packages, contracts, personId, onPaymentAdded }: PaymentsProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+  const [selectedContractId, setSelectedContractId] = useState<string>('')
   const [amount, setAmount] = useState<string>('')
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [method, setMethod] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [amountError, setAmountError] = useState<string | null>(null)
+
+  // Only contracts with a package_id can receive payments
+  const contractsWithPackage = contracts.filter((c) => c.package_id != null)
+
+  useEffect(() => {
+    if (showAddForm && !editingPaymentId && contractsWithPackage.length === 1 && !selectedContractId) {
+      setSelectedContractId(contractsWithPackage[0].id)
+    }
+  }, [showAddForm, editingPaymentId, contractsWithPackage, selectedContractId])
+
+  const validSelectedContractId = contractsWithPackage.some((c) => c.id === selectedContractId) ? selectedContractId : ''
+  const selectedContract = validSelectedContractId ? contractsWithPackage.find((c) => c.id === validSelectedContractId) : null
 
   const resetForm = () => {
+    setSelectedContractId('')
     setAmount('')
     setPaymentDate(new Date().toISOString().split('T')[0])
     setMethod('')
     setNotes('')
+    setAmountError(null)
     setEditingPaymentId(null)
     setShowAddForm(false)
   }
@@ -68,41 +87,68 @@ export default function Payments({ payments, personPackages, packages, personId,
       return
     }
 
+    const amountNum = parseFloat(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setAmountError('Enter a valid amount greater than 0')
+      return
+    }
+
+    if (!editingPaymentId && !validSelectedContractId) {
+      setAmountError('Please select a contract for this payment')
+      return
+    }
+
+    if (!editingPaymentId && selectedContract) {
+      const validation = validatePaymentAmountForPackage(
+        amountNum,
+        selectedContract.pif,
+        selectedContract.pif_cost,
+        selectedContract.default_cost_per_cycle
+      )
+      if (!validation.valid) {
+        setAmountError(validation.error ?? 'Invalid amount for this contract')
+        return
+      }
+    }
+
+    setAmountError(null)
     setSaving(true)
     try {
       const paymentDateTimestamp = new Date(paymentDate).toISOString()
-      
+
+      const trainerId = selectedContract?.trainer_id ?? null
+
       if (editingPaymentId) {
-        // Update existing payment
+        const existing = payments.find((p) => p.id === editingPaymentId)
         await upsertPayment({
           id: editingPaymentId,
-          person_package_id: payments.find(p => p.id === editingPaymentId)?.person_package_id || null,
-          amount: parseFloat(amount),
+          person_package_id: existing?.person_package_id ?? null,
+          trainer_id: existing?.trainer_id ?? trainerId,
+          amount: amountNum,
           payment_date: paymentDateTimestamp,
           method: method || null,
           notes: notes || null,
         })
       } else {
-        // Create new payment
         const newPayment = await upsertPayment({
           person_package_id: null,
-          amount: parseFloat(amount),
+          trainer_id: trainerId,
+          amount: amountNum,
           payment_date: paymentDateTimestamp,
           method: method || null,
           notes: notes || null,
         })
 
-        // Associate payment to person_package (always returns a person_package_id)
-        const associatedPersonPackageId = await associatePaymentToPersonPackage(
+        const associatedPersonPackageId = await applyPaymentToPersonPackages(
           personId,
-          paymentDateTimestamp,
-          parseFloat(amount)
+          selectedContract!.package_id!,
+          amountNum
         )
 
-        // Update payment with associated person_package_id
         await upsertPayment({
           id: newPayment.id,
           person_package_id: associatedPersonPackageId,
+          trainer_id: trainerId,
           amount: newPayment.amount,
           payment_date: newPayment.payment_date,
           method: newPayment.method,
@@ -116,7 +162,7 @@ export default function Payments({ payments, personPackages, packages, personId,
       }
     } catch (err) {
       console.error('Error saving payment:', err)
-      alert('Error saving payment. Please try again.')
+      setAmountError(err instanceof Error ? err.message : 'Failed to save payment')
     } finally {
       setSaving(false)
     }
@@ -154,6 +200,39 @@ export default function Payments({ payments, personPackages, packages, personId,
             </button>
           </div>
           <div className="space-y-4">
+            {!editingPaymentId && (
+              <>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Payments are linked to a package. <strong>PIF</strong>: enter the PIF cost to mark all obligation cycles as paid. <strong>Recurring</strong>: enter a multiple of the cycle cost to pay one or more cycles in advance.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-muted-foreground">
+                    Package (assigned to this client) *
+                  </label>
+                  <select
+                    value={validSelectedPackageId}
+                    onChange={(e) => {
+                      setSelectedPackageId(e.target.value)
+                      setAmountError(null)
+                    }}
+                    className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                    aria-label="Select a package assigned to this client"
+                  >
+                    <option value="">Select a package assigned to this client</option>
+                    {availablePackages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.pif && p.pif_cost != null ? ` (PIF $${Number(p.pif_cost).toFixed(2)})` : ''}
+                        {!p.pif && p.default_cost_per_cycle != null ? ` ($${Number(p.default_cost_per_cycle).toFixed(2)}/cycle)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {availablePackages.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">No packages assigned to this client. Assign a contract first.</p>
+                  )}
+                </div>
+              </>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1 text-muted-foreground">
@@ -164,11 +243,24 @@ export default function Payments({ payments, personPackages, packages, personId,
                   step="0.01"
                   min="0"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => { setAmount(e.target.value); setAmountError(null) }}
                   placeholder="0.00"
                   className="bg-input text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                   required
                 />
+                {!editingPaymentId && validSelectedPackageId && (() => {
+                  const pkg = availablePackages.find((p) => p.id === validSelectedPackageId)
+                  if (!pkg) return null
+                  if (pkg.pif && pkg.pif_cost != null) {
+                    return <p className="text-xs text-muted-foreground mt-1">PIF: enter exactly ${Number(pkg.pif_cost).toFixed(2)} to activate all obligation cycles.</p>
+                  }
+                  if (!pkg.pif && pkg.default_cost_per_cycle != null) {
+                    const c = Number(pkg.default_cost_per_cycle)
+                    return <p className="text-xs text-muted-foreground mt-1">Recurring: enter multiple of ${c.toFixed(2)} (e.g. ${c.toFixed(2)}, ${(c * 2).toFixed(2)}) to pay cycles in advance.</p>
+                  }
+                  return null
+                })()}
+                {amountError && <p className="text-xs text-destructive mt-1">{amountError}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-muted-foreground">

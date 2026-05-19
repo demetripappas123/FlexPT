@@ -84,10 +84,6 @@ export default function ConversionPage() {
     if (!person) return
 
     // Validate contract fields
-    if (!contractDuration || parseInt(contractDuration) <= 0) {
-      setError('Contract duration is required and must be greater than 0')
-      return
-    }
     if (!firstBillingDate) {
       setError('First billing date is required')
       return
@@ -137,6 +133,12 @@ export default function ConversionPage() {
       packageToUse = selectedPackage
     }
 
+    const untilCancelled = packageToUse['until cancelled'] === true
+    if (!untilCancelled && (!contractDuration || parseInt(contractDuration) <= 0)) {
+      setError('Contract duration is required and must be greater than 0 for fixed-duration packages')
+      return
+    }
+
     setConverting(true)
     setError(null)
     
@@ -160,13 +162,14 @@ export default function ConversionPage() {
         converted_at: new Date().toISOString(),
       })
 
-      // Create person_packages rows (one per service per obligation cycle) with status 'payment pending'
+      // Create person_packages rows (one per service per obligation cycle); for "until cancelled" only first period
       await createPersonPackagesForContract({
         personId: person.id,
         packageId: packageToUse.id,
         trainerId: user?.id ?? null,
         contractStartDate: firstBillingDate,
-        durationMonths: parseInt(contractDuration),
+        durationMonths: untilCancelled ? 0 : parseInt(contractDuration),
+        untilCancelled,
       })
 
       // Redirect to the person's page

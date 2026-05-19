@@ -5,9 +5,13 @@ import { fetchAverageBookingsPerDay } from '@/supabase/fetches/fetchaveragebooki
 
 type AverageBookingsPerDayChartProps = {
   compact?: boolean
+  trainerId?: string | null
 }
 
-export default function AverageBookingsPerDayChart({ compact = false }: AverageBookingsPerDayChartProps) {
+export default function AverageBookingsPerDayChart({
+  compact = false,
+  trainerId,
+}: AverageBookingsPerDayChartProps) {
   const [timeframe, setTimeframe] = useState<'week' | 'month'>('week')
   const [averageBookings, setAverageBookings] = useState<number>(0)
   const [loading, setLoading] = useState(true)
@@ -17,7 +21,7 @@ export default function AverageBookingsPerDayChart({ compact = false }: AverageB
       setLoading(true)
       try {
         const days = timeframe === 'week' ? 7 : 30
-        const avg = await fetchAverageBookingsPerDay(days)
+        const avg = await fetchAverageBookingsPerDay(days, trainerId)
         setAverageBookings(avg)
       } catch (error) {
         console.error('Error loading average bookings per day:', error)
@@ -28,7 +32,7 @@ export default function AverageBookingsPerDayChart({ compact = false }: AverageB
     }
 
     loadData()
-  }, [timeframe])
+  }, [timeframe, trainerId])
 
   if (compact) {
     return (

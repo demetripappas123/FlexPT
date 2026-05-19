@@ -1,16 +1,18 @@
 import { supabase } from '../supabaseClient'
 
+export type ContractStatus = 'active' | 'frozen' | 'cancelled'
+
 /**
- * contracts table: package-like columns + person_id, trainer_id, start_date.
- * Columns: id, name, description, cycle_length_weeks, package_length_weeks,
- * default_cost_per_cycle, is_active, notes, pif, pif_cost, until cancelled,
- * start_date, person_id, trainer_id, created_at, updated_at.
+ * contracts table: package-like columns + person_id, trainer_id, start_date, status, package_id.
+ * package_id links to packages and is used to determine package_services for person_packages.
  */
 export interface Contract {
   id: string
   person_id: string
   trainer_id: string | null
   start_date: string | null
+  status?: ContractStatus
+  package_id: string | null
   name: string
   description: string | null
   cycle_length_weeks: number | null
