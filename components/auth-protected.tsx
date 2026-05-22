@@ -9,20 +9,17 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const isLoginPage = pathname === '/login'
+  const isPublicPage = pathname === '/login' || pathname === '/landing'
 
   useEffect(() => {
-    // If on login page, don't redirect
-    if (isLoginPage) return
+    if (isPublicPage) return
 
-    // Redirect to login if not authenticated
     if (!loading && !user) {
-      router.push('/login')
+      router.push('/landing')
     }
-  }, [user, loading, router, isLoginPage])
+  }, [user, loading, router, isPublicPage])
 
-  // Show loading state (but allow login page to render)
-  if (loading && !isLoginPage) {
+  if (loading && !isPublicPage) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-foreground">Loading...</div>
@@ -30,12 +27,11 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
     )
   }
 
-  // Allow login page to render without auth
-  if (isLoginPage) {
+  if (isPublicPage) {
     return <>{children}</>
   }
 
-  // If not logged in and not on login page, don't render (redirect will happen)
+  // If not logged in and not on a public page, don't render (redirect will happen)
   if (!user) {
     return null
   }

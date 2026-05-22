@@ -2,15 +2,16 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/authcontext'
 
 export default function Home() {
   const router = useRouter()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    // Immediately redirect to dashboard
-    router.replace('/dash')
-  }, [router])
+    if (loading) return
+    router.replace(user ? '/dash' : '/landing')
+  }, [router, user, loading])
 
-  // Return null while redirecting
   return null
 }
