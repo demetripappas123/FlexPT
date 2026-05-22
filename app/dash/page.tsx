@@ -359,7 +359,11 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-[var(--text-secondary)]">Avg Bookings/Day</h3>
             <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
           </div>
-          <AverageBookingsPerDayChart compact trainerId={user?.id} />
+          {user?.id ? (
+            <AverageBookingsPerDayChart compact trainerId={user.id} />
+          ) : (
+            <div className="h-8 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+          )}
         </div>
       </div>
 

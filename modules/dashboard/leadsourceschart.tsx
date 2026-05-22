@@ -116,9 +116,9 @@ export default function LeadSourcesChart({ sources, prospects = [], loading, dat
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 min-h-[300px] flex flex-col">
       <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Lead Sources</h3>
-      <div className="flex-1">
+      <div className="flex-1 min-h-[250px]">
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%" minHeight={250}>
+          <ResponsiveContainer width="100%" height={250} minWidth={0}>
             <BarChart
               data={chartData}
               layout="vertical"

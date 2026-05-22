@@ -1292,8 +1292,6 @@ export default function PersonPage() {
           ) : (
 <Payments
               payments={payments || []}
-              personPackages={personPackages || []}
-              packages={packages || []}
               contracts={contracts ?? []}
               personId={person.id}
               onPaymentAdded={handleRefreshPayments}

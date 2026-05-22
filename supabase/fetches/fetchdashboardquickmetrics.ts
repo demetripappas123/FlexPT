@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { fetchClients } from './fetchpeople'
-import { fetchPayments } from './fetchpayments'
+import { fetchPayments, isPaymentCountedForRevenue, getPaymentTimestamp } from './fetchpayments'
 import { DateRangeBounds } from '../utils/daterange'
 
 /**
@@ -89,9 +89,10 @@ export async function fetchSuccessfulPaymentsThisMonth(trainerId?: string | null
     endDate = now
   }
   
-  const successfulPayments = payments.filter(payment => {
-    const paymentDate = new Date(payment.payment_date)
-    return paymentDate >= startDate && paymentDate <= endDate
+  const successfulPayments = payments.filter((payment) => {
+    if (!isPaymentCountedForRevenue(payment)) return false
+    const t = getPaymentTimestamp(payment)
+    return t >= startDate.getTime() && t <= endDate.getTime()
   })
   
   return successfulPayments.length

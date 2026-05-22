@@ -56,8 +56,8 @@ export default function ShowRateChart({ showRate }: ShowRateChartProps) {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center">
-      <div className="relative w-full max-w-[100px] h-[100px]">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="relative w-[100px] h-[100px] min-w-[100px] min-h-[100px]">
+        <ResponsiveContainer width={100} height={100} minWidth={100} minHeight={100}>
           <RadialBarChart
             innerRadius="60%"
             outerRadius="90%"
@@ -68,7 +68,7 @@ export default function ShowRateChart({ showRate }: ShowRateChartProps) {
             <RadialBar dataKey="value" cornerRadius={10} />
           </RadialBarChart>
         </ResponsiveContainer>
-        <ResponsiveContainer width="100%" height="100%" className="absolute top-0 left-0">
+        <ResponsiveContainer width={100} height={100} minWidth={100} minHeight={100} className="absolute top-0 left-0">
           <RadialBarChart
             innerRadius="60%"
             outerRadius="90%"

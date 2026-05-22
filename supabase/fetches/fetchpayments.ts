@@ -1,142 +1,117 @@
 import { supabase } from '../supabaseClient'
+import {
+  Payment,
+  PAYMENT_ORDER_COLUMN,
+  PAYMENT_SELECT_COLUMNS,
+  mapPaymentRow,
+  getPaymentTimestamp,
+  isPaymentCountedForRevenue,
+} from './paymentSchema'
 
-export interface Payment {
-  id: string
-  person_package_id: string | null
-  trainer_id: string | null
-  amount: number
-  payment_date: string
-  method: string | null
-  notes: string | null
+export type { Payment }
+export { isPaymentCountedForRevenue, getPaymentTimestamp } from './paymentSchema'
+
+function paymentsQuery() {
+  return supabase.from('payments').select(PAYMENT_SELECT_COLUMNS)
 }
 
-function applyTrainerFilter<T extends { eq: (col: string, val: string) => T }>(
-  query: T,
-  trainerId?: string | null
-): T {
-  if (trainerId) {
-    return query.eq('trainer_id', trainerId)
-  }
-  return query
+function mapRows(data: unknown[] | null): Payment[] {
+  return (data ?? []).map((row) => mapPaymentRow(row as Record<string, unknown>))
 }
 
 /**
- * Fetch all payments, optionally filtered by trainer_id on the payments row.
+ * Fetch payments for a person via their contracts.
+ */
+export async function fetchPaymentsByPersonId(personId: string): Promise<Payment[]> {
+  const { data: contracts, error: contractErr } = await supabase
+    .from('contracts')
+    .select('id')
+    .eq('person_id', personId)
+
+  if (contractErr) {
+    console.error('Error fetching contracts for payments:', contractErr)
+    return []
+  }
+
+  if (!contracts?.length) return []
+
+  const contractIds = contracts.map((c) => c.id)
+
+  const { data, error } = await paymentsQuery()
+    .in('contract_id', contractIds)
+    .order(PAYMENT_ORDER_COLUMN, { ascending: false, nullsFirst: false })
+
+  if (error) {
+    console.error('Error fetching payments by contract:', error)
+    return []
+  }
+
+  return mapRows(data)
+}
+
+/**
+ * Fetch all payments, optionally filtered by trainer_id.
  */
 export async function fetchPayments(trainerId?: string | null): Promise<Payment[]> {
-  let query = supabase.from('payments').select('*').order('payment_date', { ascending: false })
-  query = applyTrainerFilter(query, trainerId)
+  let query = paymentsQuery().order(PAYMENT_ORDER_COLUMN, { ascending: false, nullsFirst: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
 
   const { data, error } = await query
 
   if (error) {
     console.error('Error fetching payments:', error)
-    throw error
+    return []
   }
 
-  return data ?? []
+  return mapRows(data)
 }
 
 /**
- * Sum payment amounts in a date range, optionally for one trainer.
+ * Sum payment amounts in a date range (processed/completed payments only).
  */
 export async function sumPaymentsInDateRange(
   startDate: Date,
   endDate: Date,
   trainerId?: string | null
 ): Promise<number> {
-  let query = supabase
-    .from('payments')
-    .select('amount')
-    .gte('payment_date', startDate.toISOString())
-    .lte('payment_date', endDate.toISOString())
+  const payments = trainerId ? await fetchPayments(trainerId) : await fetchPayments()
 
-  query = applyTrainerFilter(query, trainerId)
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error summing payments in date range:', error)
-    throw error
-  }
-
-  if (!data?.length) return 0
-
-  return data.reduce((sum, row) => {
-    const amount = Number(row.amount) || 0
-    return isNaN(amount) ? sum : sum + amount
-  }, 0)
+  return payments
+    .filter((p) => {
+      if (!isPaymentCountedForRevenue(p)) return false
+      const t = getPaymentTimestamp(p)
+      return t >= startDate.getTime() && t <= endDate.getTime()
+    })
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
 }
 
-/**
- * Fetch payments for a specific person_package
- */
-export async function fetchPaymentsByPersonPackage(personPackageId: string): Promise<Payment[]> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('person_package_id', personPackageId)
-    .order('payment_date', { ascending: false })
+export async function fetchPaymentsByContract(contractId: string): Promise<Payment[]> {
+  const { data, error } = await paymentsQuery()
+    .eq('contract_id', contractId)
+    .order(PAYMENT_ORDER_COLUMN, { ascending: false, nullsFirst: false })
 
   if (error) {
-    console.error('Error fetching payments by person_package:', error)
-    throw error
-  }
-
-  return data ?? []
-}
-
-/**
- * Fetch a single payment by ID
- */
-export async function fetchPaymentById(paymentId: string): Promise<Payment | null> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('id', paymentId)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null
-    }
-    console.error('Error fetching payment:', error)
-    throw error
-  }
-
-  return data
-}
-
-/**
- * Fetch payments for a specific person (via person_packages.person_id).
- */
-export async function fetchPaymentsByPersonId(personId: string): Promise<Payment[]> {
-  const { data: personPackages, error: ppError } = await supabase
-    .from('person_packages')
-    .select('id')
-    .eq('person_id', personId)
-
-  if (ppError) {
-    console.error('Error fetching person_packages for payments:', ppError)
-    throw ppError
-  }
-
-  if (!personPackages?.length) {
+    console.error('Error fetching payments by contract:', error)
     return []
   }
 
-  const personPackageIds = personPackages.map((pp) => pp.id)
+  return mapRows(data)
+}
 
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .in('person_package_id', personPackageIds)
-    .order('payment_date', { ascending: false })
+/** @deprecated Use fetchPaymentsByContract */
+export const fetchPaymentsByPersonPackage = fetchPaymentsByContract
+
+export async function fetchPaymentById(paymentId: string): Promise<Payment | null> {
+  const { data, error } = await paymentsQuery().eq('id', paymentId).single()
 
   if (error) {
-    console.error('Error fetching payments by person:', error)
-    throw error
+    if (error.code === 'PGRST116') return null
+    console.error('Error fetching payment:', error)
+    return null
   }
 
-  return data ?? []
+  return data ? mapPaymentRow(data as Record<string, unknown>) : null
 }

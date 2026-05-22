@@ -1,5 +1,5 @@
 import { fetchSessions } from './fetchsessions'
-import { fetchPayments } from './fetchpayments'
+import { fetchPayments, isPaymentCountedForRevenue } from './fetchpayments'
 import { calculateProspectSessionCloseRate, calculateProspectSessionShowRate } from './fetchprospectsessions'
 import { fetchTotalRevenue } from './fetchtotalrevenue'
 import { fetchTrainedRevenue } from './fetchtrainedrevenue'
@@ -53,7 +53,9 @@ async function calculateAverageBookings(
 
 async function calculateRevenue(trainerId?: string | null): Promise<number> {
   const payments = await fetchPayments(trainerId)
-  return payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+  return payments
+    .filter((p) => isPaymentCountedForRevenue(p))
+    .reduce((sum, payment) => sum + Number(payment.amount), 0)
 }
 
 /**

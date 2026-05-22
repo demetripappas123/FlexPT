@@ -3,6 +3,7 @@ import { fetchContractsByPersonId } from './fetchcontracts'
 import { fetchPersonPackagesByPersonId } from './fetchpersonpackages'
 import { fetchPackages, Package } from './fetchpackages'
 import { fetchPaymentsByPersonId } from './fetchpayments'
+import { getPaymentTimestamp } from './paymentSchema'
 import {
   personPackagesOverlapRange,
   uniqueCycleStartDates,
