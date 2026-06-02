@@ -1,50 +1,71 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Calendar,
-  Dumbbell,
-  LayoutDashboard,
-  Users,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useAuth } from '@/context/authcontext'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { HeroMockupCarousel } from '@/components/landing/hero-mockup-carousel'
+import { LandingContactForm } from '@/components/landing/landing-contact-form'
+import { cn } from '@/lib/utils'
+
+const HERO_BG = '#fafafa'
+
+const HERO_LINK_ROWS = [
+  'Hands-off lead generation',
+  'Lead Nurturing Automations',
+  'Proven client retention systems',
+  'Automated and accelerated coaching workflows',
+] as const
+
+const SECTION_BELOW_HERO = 'features'
 
 const features = [
   {
-    icon: LayoutDashboard,
-    title: 'Dashboard',
-    description: 'See your business at a glance with sessions, revenue, and client activity in one place.',
+    headline: 'Capture Leads',
+    bullets: [
+      'Auto generate your custom conversion page',
+      'Link to this site from your Instagram, TikTok, Google reviews, and more',
+      'Use this link in your ManyChats automation to auto respond to comments and DMs on social media',
+      'Prospects can book consultations directly, fill out forms, or purchase services all from your conversion page',
+      'Actively source incoming leads so you know highest yield platforms',
+    ],
   },
   {
-    icon: Users,
-    title: 'Clients & Prospects',
-    description: 'Manage your roster from first inquiry through onboarding and long-term coaching.',
+    headline: 'Nurture Leads',
+    bullets: [
+      'See show rates, and close rates',
+      'Display top revenue and deals from each marketing source',
+      'Create contact automations for new lead followups, consultation reminders, no-show recovery, and client onboarding',
+      'See revenue trends and set booking goals to reach your desired income',
+    ],
   },
   {
-    icon: Calendar,
-    title: 'Calendar',
-    description: 'Schedule sessions, track events, and keep every appointment organized.',
+    headline: 'Keep Clients',
+    bullets: [
+      '3000+ exercises, including powerlifting, calisthenics, combat-sports based, HIIT training, and corrective exercises',
+      'Upload your existing regimens into FlexPT workouts or build new ones with our advanced AI workout and nutrition program editors',
+      'Assign meals from our 2000+ food database',
+      'Gain granular access to RPE, RIR, volume per muscle group, and advanced progress metrics',
+      'See client compliance scores',
+      'Customize your own version of the client app',
+    ],
   },
   {
-    icon: Dumbbell,
-    title: 'Programs & Workouts',
-    description: 'Build training programs and maintain a workout library you can reuse with any client.',
-  },
-  {
-    icon: UtensilsCrossed,
-    title: 'Nutrition',
-    description: 'Plan nutrition guidance and keep meal resources in your library for quick assignment.',
+    headline: 'Train Smarter',
+    bullets: [
+      'Automate workout prescriptions, meal prescriptions',
+      'Generate workouts from history with our advanced AI workout and nutrition program editors',
+      'Automate client check-in messages, session reminders, progress forms, and more,"',
+    ],
   },
 ]
 
 export default function LandingPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const [navScrolled, setNavScrolled] = useState(false)
 
   useEffect(() => {
     if (!loading && user) {
@@ -52,9 +73,21 @@ export default function LandingPage() {
     }
   }, [user, loading, router])
 
+  useEffect(() => {
+    const onScroll = () => setNavScrolled(window.scrollY > 16)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.add('landing-page')
+    return () => document.documentElement.classList.remove('landing-page')
+  }, [])
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-foreground">Loading...</div>
       </div>
     )
@@ -65,86 +98,158 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-2xl font-bold">TurboTrain</span>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Button asChild variant="outline">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/login">Get started</Link>
-            </Button>
+    <div
+      className="flex min-h-screen flex-col overflow-x-hidden text-foreground"
+      style={{ backgroundColor: HERO_BG }}
+    >
+      <main className="flex flex-col">
+        <header
+          className={cn(
+            'landing-header text-stone-900',
+            navScrolled && 'landing-header--scrolled'
+          )}
+        >
+          <div className="landing-page-x mx-auto flex h-full w-full max-w-7xl items-center px-3 sm:px-4">
+            <div className="landing-header-inner flex w-full items-center gap-4 lg:gap-6">
+              <Link
+                href="#overview"
+                className="landing-header-logo shrink-0 text-2xl font-bold"
+              >
+                FlexPT
+              </Link>
+              <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+                <Button asChild variant="outline">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button
+                  asChild
+                  className="bg-brand text-brand-foreground hover:bg-[var(--brand-dark)]"
+                >
+                  <Link href="/login">Sign up</Link>
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main>
-        <section className="mx-auto max-w-6xl px-6 py-20 text-center md:py-28">
-          <p className="mb-4 text-sm font-medium uppercase tracking-wider text-primary">
-            Built for personal trainers
-          </p>
-          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
-            Run your coaching business from one place
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            TurboTrain helps you manage clients, programs, scheduling, and nutrition so you can
-            spend less time on admin and more time coaching.
-          </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="/login">Create your account</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/login">Sign in to your account</Link>
-            </Button>
+        {/* Hero: full viewport below the fixed navbar strip */}
+        <section
+          id="overview"
+          className="landing-hero relative z-0 flex w-full shrink-0 flex-col overflow-x-clip overflow-y-visible text-stone-900"
+          style={{ backgroundColor: HERO_BG }}
+        >
+          <div className="landing-page-x mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-3 sm:px-4">
+            <div className="landing-hero-body relative flex min-h-0 w-full flex-1 flex-col lg:flex-row lg:items-start lg:gap-8">
+              <div className="relative z-30 flex min-w-0 flex-col items-center justify-start text-center lg:flex-[2] lg:basis-0 lg:items-start lg:text-left">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-brand sm:text-sm">
+                built by personal trainers
+              </p>
+              <h1 className="max-w-xl text-2xl font-bold tracking-tight sm:text-3xl md:text-3xl lg:text-[2.25rem] lg:leading-tight xl:text-4xl">
+                <span>Get Clients,</span> <span>Keep Clients,</span> <span>and Automate Your Business Growth.</span>
+              </h1>
+              <p className="mt-4 max-w-lg text-base font-semibold leading-relaxed text-stone-800 sm:mt-5">
+                Join our Private Alpha! We&apos;re in early development and your
+                feedback will shape the evolution of our product!
+              </p>
+              <div className="my-6 mx-auto flex w-full max-w-lg flex-wrap items-center justify-center gap-3 sm:gap-4 sm:my-7 lg:mx-0 lg:justify-start lg:pl-3">
+                <Button
+                  asChild
+                  className="bg-brand text-brand-foreground hover:bg-[var(--brand-dark)]"
+                >
+                  <Link href="/login">Join Now!</Link>
+                </Button>
+                <Button
+                  asChild
+                  className="bg-brand text-brand-foreground hover:bg-[var(--brand-dark)]"
+                >
+                  <Link
+                    href={`#${SECTION_BELOW_HERO}`}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    See More
+                    <ChevronDown className="size-4" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+              <ul className="mt-4 flex w-full max-w-md flex-col gap-2 sm:mt-5 lg:max-w-lg">
+                {HERO_LINK_ROWS.map((rowLabel) => (
+                  <li key={rowLabel}>
+                    <Link
+                      href={`#${SECTION_BELOW_HERO}`}
+                      className="block rounded-lg border border-stone-200/90 bg-white/70 px-3.5 py-2.5 text-left shadow-sm transition-colors hover:border-stone-300 hover:bg-white sm:px-4 sm:py-3"
+                    >
+                      <span className="text-sm font-medium leading-snug text-stone-800 sm:text-base">
+                        {rowLabel}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Graphics: on mobile this becomes its own block beneath the 4 rows */}
+              <div className="relative z-10 mt-10 flex min-h-0 min-w-0 items-end justify-center overflow-visible sm:mt-12 lg:mt-0 lg:flex-[3] lg:basis-0">
+                <HeroMockupCarousel />
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="border-t border-border bg-card/50">
-          <div className="mx-auto max-w-6xl px-6 py-20">
-            <h2 className="text-center text-2xl font-bold md:text-3xl">
+        {/* Features — directly below hero */}
+        <section
+          id="features"
+          className="relative z-10 flex min-h-[100dvh] w-full shrink-0 scroll-mt-[var(--landing-nav-height)] flex-col justify-center border-t border-stone-800 bg-[#1a1a1a] py-12 text-stone-100 sm:py-16"
+        >
+          <div className="relative z-10 mx-auto w-full max-w-7xl px-3 sm:px-4">
+            <h2 className="text-center text-2xl font-bold text-white md:text-3xl">
               Everything you need to coach at scale
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
+            <p className="mx-auto mt-4 max-w-2xl text-center text-stone-400">
               From prospect to paying client — programs, sessions, and nutrition in a single
               workflow.
             </p>
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map(({ icon: Icon, title, description }) => (
+            <div className="mt-10 flex flex-col gap-4 lg:mt-12 lg:flex-row lg:items-stretch lg:gap-5">
+              {features.map(({ headline, bullets }, index) => (
                 <div
-                  key={title}
-                  className="rounded-lg border border-border bg-card p-6 shadow-sm"
+                  key={headline}
+                  className="flex min-w-0 flex-1 flex-col items-start rounded-lg border border-stone-700/80 bg-stone-900/50 p-5 shadow-sm sm:p-6"
                 >
-                  <div className="mb-4 inline-flex rounded-md bg-primary/10 p-3 text-primary">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+                  <span className="text-sm font-semibold tabular-nums tracking-wide text-stone-500">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="mt-2 shrink-0 text-lg font-semibold text-white">{headline}</h3>
+                  <ul className="mt-3 list-disc space-y-2 pl-4 text-sm leading-relaxed text-stone-400">
+                    {bullets.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-            <h2 className="text-2xl font-bold md:text-3xl">Ready to get started?</h2>
-            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Sign up in minutes and start organizing your clients, calendar, and programs today.
+        <section
+          id="contact"
+          className="shrink-0 scroll-mt-[var(--landing-nav-height)] border-t border-stone-200/80 bg-[#fafafa] py-14 text-stone-900 sm:py-16"
+        >
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-4">
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+              Get in touch
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-center text-stone-600">
+              Join the private alpha or ask us a question — we&apos;ll reach out when we can.
             </p>
-            <Button asChild size="lg" className="mt-8">
-              <Link href="/login">Get started free</Link>
-            </Button>
+            <div className="mt-10">
+              <LandingContactForm />
+            </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto max-w-6xl px-6 py-8 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} TurboTrain
+      <footer className="shrink-0 border-t border-border bg-background">
+        <div className="mx-auto w-full max-w-7xl py-8 text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} FlexPT
         </div>
       </footer>
     </div>

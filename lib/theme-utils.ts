@@ -33,6 +33,9 @@ export const themeColors = {
   blueBg: 'bg-[var(--blue-primary)]',
   green: 'text-[var(--green-primary)]',
   red: 'text-[var(--red-primary)]',
+  brand: 'text-[var(--brand)]',
+  brandBg: 'bg-[var(--brand)]',
+  brandSubtle: 'bg-[var(--brand-subtle)]',
 }
 
 /**

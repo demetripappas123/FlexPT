@@ -97,7 +97,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card border border-border rounded-lg p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-foreground mb-2">TurboTrain</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">FlexPT</h1>
           <p className="text-muted-foreground">
             {isSignUp ? 'Create a new account' : 'Sign in to your account'}
           </p>

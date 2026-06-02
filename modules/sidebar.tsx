@@ -16,7 +16,7 @@ export default function Sidebar() {
         <div className="p-6 border-b border-sidebar-border flex items-center justify-between">
           <Link href="/dash">
             <span className="text-2xl font-bold text-sidebar-foreground">
-              TurboTrain
+              FlexPT
             </span>
           </Link>
           <ThemeToggle />
