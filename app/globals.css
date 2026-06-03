@@ -173,29 +173,122 @@ html.dark {
 
 @layer components {
   /* Landing hero:
-     - Mobile: content-driven height (can exceed 100vh)
-     - md+: lock to viewport height
+     - Below 900px: content-driven height (stacked layout)
+     - 900px+: min viewport height, side-by-side layout
   */
   .landing-hero {
     box-sizing: border-box;
     height: auto;
     min-height: 0;
     max-height: none;
+    margin-top: var(--landing-nav-height);
+    padding-bottom: 3.5rem;
   }
 
-  @media (min-width: 768px) {
+  .landing-hero-body {
+    padding-top: 2rem;
+  }
+
+  @media (max-width: 639px) {
+    .landing-hero-body {
+      padding-top: 2.5rem;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .landing-hero-body {
+      padding-top: 2.25rem;
+    }
+
     .landing-hero {
-      height: 100vh;
+      padding-bottom: 4.5rem;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .landing-hero {
       min-height: 100vh;
-      max-height: 100vh;
+      padding-bottom: 0;
     }
 
     @supports (height: 100dvh) {
       .landing-hero {
-        height: 100dvh;
         min-height: 100dvh;
-        max-height: 100dvh;
       }
+    }
+
+    .landing-hero-body {
+      padding-top: var(--landing-nav-height);
+    }
+  }
+
+  /* Mockup layer positions — scale together below 900px */
+  @media (max-width: 899px) {
+    .landing-mockup-shell,
+    .landing-mockup-stage {
+      overflow: visible;
+    }
+
+    .landing-mockup-shell {
+      padding-bottom: 4.5rem;
+    }
+  }
+
+  .landing-mockup-web {
+    bottom: -3%;
+    left: -9%;
+    width: 128%;
+    max-height: 108%;
+  }
+
+  .landing-mockup-phone {
+    top: 21%;
+    right: -3%;
+    width: 43%;
+  }
+
+  @media (min-width: 640px) {
+    .landing-mockup-web {
+      bottom: -4%;
+      left: -10%;
+      width: 132%;
+      max-height: 110%;
+    }
+
+    .landing-mockup-phone {
+      top: 19%;
+      right: -4%;
+      width: 41%;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .landing-mockup-web {
+      bottom: -4%;
+      left: -11%;
+      width: 134%;
+      max-height: 111%;
+    }
+
+    .landing-mockup-phone {
+      top: 18%;
+      right: -4%;
+      width: 39%;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .landing-mockup-web {
+      bottom: -4%;
+      left: -10%;
+      width: 122%;
+      max-height: 107%;
+    }
+
+    .landing-mockup-phone {
+      top: 18%;
+      right: -4%;
+      width: 38%;
     }
   }
 
@@ -252,16 +345,6 @@ html.dark {
   .landing-header--scrolled .landing-header-logo {
     font-size: 1.375rem;
     line-height: 1.75rem;
-  }
-
-  .landing-hero {
-    margin-top: var(--landing-nav-height);
-  }
-
-  @media (min-width: 1024px) {
-    .landing-hero-body {
-      padding-top: var(--landing-nav-height);
-    }
   }
 
   /* Sharp phone: no shadows/filters; cap near native width on retina */

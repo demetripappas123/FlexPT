@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn, signUp } from '@/supabase/auth/auth-helpers'
+import { signIn } from '@/supabase/auth/auth-helpers'
 import { useAuth } from '@/context/authcontext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+
+const APPROVED_USERS_NOTICE = '* Only approved users can sign in right now.'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -33,46 +35,20 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        if (!name.trim()) {
-          setError('Please enter your name')
-          setIsLoading(false)
-          return
-        }
+        setIsLoading(false)
+        return
+      }
 
-        const { data, error } = await signUp(email, password, name.trim())
+      const { data, error } = await signIn(email, password)
 
-        if (error && !data?.user) {
-          // Only show error if user wasn't created
-          setError(error.message || 'Failed to sign up')
-          setIsLoading(false)
-          return
-        }
-        // If there's an error but user was created (email confirmation error), 
-        // the signUp function handles it and we continue
+      if (error) {
+        setError(error.message || 'Failed to sign in')
+        setIsLoading(false)
+        return
+      }
 
-        if (data?.user) {
-          setSuccessMessage('Account created successfully! You can now sign in.')
-          setIsLoading(false)
-          // Optionally switch to sign in mode after successful signup
-          setTimeout(() => {
-            setIsSignUp(false)
-            setSuccessMessage(null)
-            setName('') // Clear name field
-          }, 3000)
-        }
-      } else {
-        const { data, error } = await signIn(email, password)
-
-        if (error) {
-          setError(error.message || 'Failed to sign in')
-          setIsLoading(false)
-          return
-        }
-
-        if (data?.user) {
-          // Redirect will happen via useEffect
-          router.push('/dash')
-        }
+      if (data?.user) {
+        router.push('/dash')
       }
     } catch (err) {
       console.error('Auth error:', err)
@@ -147,43 +123,44 @@ export default function LoginPage() {
             </div>
           )}
 
-            {successMessage && (
-              <div className="p-3 bg-green-600/20 border border-green-600/50 rounded-md text-green-400 text-sm">
-                {successMessage}
-              </div>
-            )}
+          {successMessage && (
+            <div className="p-3 bg-green-600/20 border border-green-600/50 rounded-md text-green-400 text-sm">
+              {successMessage}
+            </div>
+          )}
 
-            {isSignUp && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Name
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required={isSignUp}
-                  className="bg-input border-border text-foreground"
-                  placeholder="Your name"
-                  disabled={isLoading}
-                />
-              </div>
-            )}
+          <p className="text-sm leading-relaxed text-muted-foreground">{APPROVED_USERS_NOTICE}</p>
 
+          {isSignUp && (
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-1">
-                Email
+              <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
+                Name
               </label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-input border-border text-foreground"
+                placeholder="Your name"
+                disabled
+              />
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-1">
+              Email
+            </label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              required={!isSignUp}
               className="bg-input border-border text-foreground"
               placeholder="you@example.com"
-              disabled={isLoading}
+              disabled={isLoading || isSignUp}
             />
           </div>
 
@@ -196,29 +173,20 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              required={!isSignUp}
               className="bg-input border-border text-foreground"
               placeholder="••••••••"
-              disabled={isLoading}
+              disabled={isLoading || isSignUp}
               minLength={6}
             />
-            {isSignUp && (
-              <p className="mt-1 text-xs text-muted-foreground">Password must be at least 6 characters</p>
-            )}
           </div>
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isSignUp}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
           >
-            {isLoading
-              ? isSignUp
-                ? 'Creating account...'
-                : 'Signing in...'
-              : isSignUp
-                ? 'Sign up'
-                : 'Sign in'}
+            {isLoading ? 'Signing in...' : isSignUp ? 'Sign up' : 'Sign in'}
           </Button>
         </form>
       </div>

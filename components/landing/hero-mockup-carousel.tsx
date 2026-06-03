@@ -7,24 +7,30 @@ type HeroMockupCarouselProps = {
 }
 
 /**
- * One relative box (fills the hero graphics flex child). Tablet + phone are
- * absolutely positioned inside it using % of this box — not a second flex row.
+ * Layered tablet + phone in one aspect box. Below 900px sizes scale up together
+ * via shared % offsets so their relative positions stay consistent.
  */
 export function HeroMockupCarousel({ className = '' }: HeroMockupCarouselProps) {
   return (
     <div
       className={cn(
-        'relative mx-auto aspect-[5/3] w-full max-w-[44rem] overflow-visible [perspective:1200px] md:max-w-none',
+        'landing-mockup-shell mx-auto w-full max-w-[26rem] overflow-visible pb-12 sm:max-w-[32rem] sm:pb-14 md:max-w-[38rem]',
+        'min-[900px]:max-w-none min-[900px]:pb-0',
         className
       )}
-      aria-label="FlexPT on desktop and mobile"
     >
-      {/* Tablet */}
-      <WebMockup className="absolute bottom-[-6%] left-[-16%] z-0 h-auto w-[138%] max-h-[110%] object-contain drop-shadow-md sm:bottom-[-5%] sm:left-[-13%] sm:w-[132%] sm:max-h-[108%] md:bottom-[-4%] md:left-[-10%] md:w-[122%] md:max-h-[107%]" />
+      <div
+        className={cn(
+          'landing-mockup-stage relative mx-auto aspect-[5/3] w-full overflow-visible [perspective:1200px]',
+          'min-[900px]:max-h-[min(70dvh,40rem)]'
+        )}
+        aria-label="FlexPT on desktop and mobile"
+      >
+        <WebMockup className="landing-mockup-web absolute z-0 h-auto object-contain drop-shadow-md" />
 
-      {/* Phone */}
-      <div className="hero-phone-slot absolute top-[22%] right-[-7%] z-10 w-[46%] max-w-[941px] [transform:rotateY(-14deg)_rotateZ(2deg)] sm:top-[20%] sm:right-[-6%] sm:w-[42%] md:top-[18%] md:right-[-4%] md:w-[38%]">
-        <PhoneMockup />
+        <div className="landing-mockup-phone hero-phone-slot absolute z-10 max-w-[941px] [transform:rotateY(-14deg)_rotateZ(2deg)]">
+          <PhoneMockup />
+        </div>
       </div>
     </div>
   )

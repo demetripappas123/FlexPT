@@ -4,6 +4,10 @@ import { type FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  getPrivateAlphaListErrorMessage,
+  insertPrivateAlphaListEntry,
+} from '@/supabase/upserts/upsertprivalphalist'
 import { cn } from '@/lib/utils'
 
 const labelClass = 'mb-1 block text-sm font-medium text-stone-700'
@@ -20,14 +24,29 @@ export function LandingContactForm() {
   const [receiveMessages, setReceiveMessages] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setSubmitError(null)
     setIsSubmitting(true)
-    // TODO: persist to CRM / database
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    setSubmitted(true)
-    setIsSubmitting(false)
+
+    try {
+      await insertPrivateAlphaListEntry({
+        firstname: firstName,
+        lastname: lastName,
+        email,
+        phone: phone.trim() || null,
+        business: business.trim() || null,
+        notes: notes.trim() || null,
+        receivems: receiveMessages,
+      })
+      setSubmitted(true)
+    } catch (err) {
+      setSubmitError(getPrivateAlphaListErrorMessage(err))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (submitted) {
@@ -167,6 +186,12 @@ export function LandingContactForm() {
       >
         {isSubmitting ? 'Submitting…' : 'Submit'}
       </Button>
+
+      {submitError ? (
+        <p className="text-sm text-red-600" role="alert">
+          {submitError}
+        </p>
+      ) : null}
     </form>
   )
 }
