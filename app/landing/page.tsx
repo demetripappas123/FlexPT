@@ -220,7 +220,7 @@ export default function LandingPage() {
                       asChild
                       className="bg-brand text-brand-foreground hover:bg-[var(--brand-dark)]"
                     >
-                      <Link href="/login">Join Now!</Link>
+                      <Link href="#contact">Join Now!</Link>
                     </Button>
                     <Button
                       asChild
