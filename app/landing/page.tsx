@@ -65,7 +65,7 @@ const features = [
     bullets: [
       'Automate workout prescriptions, meal prescriptions',
       'Generate workouts from history with our advanced AI workout and nutrition program editors',
-      'Automate client check-in messages, session reminders, progress forms, and more,"',
+      'Automate client check-in messages, session reminders, progress forms, and more',
     ],
   },
 ]
