@@ -1,0 +1,5 @@
+Date: August 13, 2026
+
+Keys should remain the same, committing from different device so I had to re-add the env. If for some reason supabase operations aren't working, it could be new keys, but shouldn't be.
+
+Current status: the contracts table is mainly storing metadata about contract start date, type of contract, end date, billing cycle length, if it is PIF or not, renewal date, etc. The packages table is redundant with a lot of this information, but it is purposed to serve as a blueprint for packages that can be assigned to any client. I will need to assess if it should remain redundant and optimize its purpose. The person packages table is currently disconnected but is intended to be the consumable services tied to a payment and to a timeframe.
