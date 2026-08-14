@@ -70,9 +70,11 @@ export default function PaymentsPage() {
       const processedAt = new Date(paymentDate).toISOString()
       const amountNum = parseFloat(amount)
 
-      await applyPaymentToPersonPackages(contract.person_id, contract.package_id, amountNum)
+      if (!contract.person_id) {
+        throw new Error('Selected contract has no person')
+      }
 
-      await upsertPayment({
+      const created = await upsertPayment({
         contract_id: contract.id,
         trainer_id: contract.trainer_id,
         amount: amountNum,
@@ -82,6 +84,13 @@ export default function PaymentsPage() {
         processed_at: processedAt,
         generated_obligations: true,
       })
+
+      await applyPaymentToPersonPackages(
+        contract.person_id,
+        contract.id,
+        amountNum,
+        created.id != null ? String(created.id) : null
+      )
 
       const paymentsData = await fetchPayments()
       setPayments(paymentsData)

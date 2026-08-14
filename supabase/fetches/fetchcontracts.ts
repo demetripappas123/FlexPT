@@ -3,28 +3,25 @@ import { supabase } from '../supabaseClient'
 export type ContractStatus = 'active' | 'frozen' | 'cancelled'
 
 /**
- * contracts table: package-like columns + person_id, trainer_id, start_date, status, package_id.
- * package_id links to packages and is used to determine package_services for person_packages.
+ * contracts — instance of a package assigned to a person (billing metadata).
  */
 export interface Contract {
   id: string
-  person_id: string
-  trainer_id: string | null
-  start_date: string | null
-  status?: ContractStatus
-  package_id: string | null
   name: string
   description: string | null
-  cycle_length_weeks: number | null
-  package_length_weeks: number
-  default_cost_per_cycle: number | null
-  is_active: boolean
-  notes: string | null
-  pif: boolean
+  bill_cycle_length_weeks: number | null
+  cost_per_bill_cycle: number | null
+  pif: boolean | null
   pif_cost: number | null
-  'until cancelled': boolean
-  created_at?: string
-  updated_at?: string
+  until_cancelled: boolean | null
+  start_date: string | null
+  person_id: string | null
+  trainer_id: string | null
+  status: ContractStatus | null
+  package_id: string | null
+  renewal_date: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 /**
@@ -88,4 +85,3 @@ export async function fetchContractsByPersonId(personId: string): Promise<Contra
 
   return data ?? []
 }
-

@@ -21,6 +21,20 @@ type PackageListProps = {
   onPackagesUpdate: () => void
 }
 
+/** Form state: includes UI-only fields not present on packages table. */
+type PackageListFormData = {
+  name: string
+  description: string | null
+  bill_cycle_length_weeks: number | null
+  package_length_weeks: number
+  default_cost_per_cycle: number | null
+  is_active?: boolean
+  notes?: string | null
+  until_cancelled?: boolean
+  pif?: boolean
+  pif_cost?: number | null
+}
+
 type BillingType = 'PIF' | 'recurring' | 'recurring_with_down_payment'
 
 type ServiceSelection = {
@@ -96,10 +110,10 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
   const [pifSessionPeriod, setPifSessionPeriod] = useState<'weekly' | 'monthly'>('weekly') // Weekly or monthly for PIF sessions
   const [durationUnit, setDurationUnit] = useState<'weeks' | 'months'>('weeks') // Duration input unit
   const [durationValue, setDurationValue] = useState<number>(0) // Store the original input value before conversion
-  const [formData, setFormData] = useState<PackageFormData>({
+  const [formData, setFormData] = useState<PackageListFormData>({
     name: '',
     description: null,
-    cycle_length_weeks: 0,
+    bill_cycle_length_weeks: 0,
     package_length_weeks: 0,
     default_cost_per_cycle: 0,
     is_active: true,
@@ -176,7 +190,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
     setFormData({
       name: '',
       description: null,
-      cycle_length_weeks: 0,
+      bill_cycle_length_weeks: 0,
       package_length_weeks: 0,
       default_cost_per_cycle: 0,
       is_active: true,
@@ -265,7 +279,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
 
   const calculateCosts = () => {
     let totalCost = 0
-    const cycleWeeks = formData.cycle_length_weeks || 1
+    const cycleWeeks = formData.bill_cycle_length_weeks || 1
 
     // Add session costs
     // Note: For now, cost calculation is simplified. Units per billing cycle will be calculated later from obligations
@@ -274,7 +288,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       // This is a placeholder - actual billing cycle calculation will be done later
       const obligationPeriodWeeks = sessionFrequency === 'weekly' ? 1 : 4
       const unitsPerWeek = sessionFrequency === 'weekly' ? sessionUnits : (sessionUnits / 4)
-      const billingCycleWeeks = formData.cycle_length_weeks || 1
+      const billingCycleWeeks = formData.bill_cycle_length_weeks || 1
       const unitsPerBillingCycle = Math.round(unitsPerWeek * billingCycleWeeks)
       totalCost += unitsPerBillingCycle * sessionUnitCost
     }
@@ -309,7 +323,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         alert('Please enter a package name')
         return
       }
-      if (billingType !== 'PIF' && formData.cycle_length_weeks <= 0) {
+      if (billingType !== 'PIF' && formData.bill_cycle_length_weeks <= 0) {
         alert('Please enter a valid billing cycle duration')
         return
       }
@@ -319,8 +333,8 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         return
       }
       // For recurring packages, ensure duration is a multiple of cycle length
-      if (billingType !== 'PIF' && !isIndefinite && formData.cycle_length_weeks > 0 && formData.package_length_weeks % formData.cycle_length_weeks !== 0) {
-        alert(`Total duration must be a multiple of billing cycle duration (${formData.cycle_length_weeks} weeks)`)
+      if (billingType !== 'PIF' && !isIndefinite && formData.bill_cycle_length_weeks > 0 && formData.package_length_weeks % formData.bill_cycle_length_weeks !== 0) {
+        alert(`Total duration must be a multiple of billing cycle duration (${formData.bill_cycle_length_weeks} weeks)`)
         return
       }
     }
@@ -347,7 +361,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
           }
         } else {
           // For recurring, validate frequency and units
-          if (formData.cycle_length_weeks <= 0) {
+          if (formData.bill_cycle_length_weeks <= 0) {
             alert('Please set a billing cycle duration in step 1')
             return
           }
@@ -449,14 +463,16 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
   const handleEditClick = (pkg: Package) => {
     setEditingPackage(pkg)
     setFormData({
-      id: pkg.id,
-      name: pkg.name,
+      name: pkg.name ?? '',
       description: pkg.description,
-      cycle_length_weeks: pkg.cycle_length_weeks,
-      package_length_weeks: pkg.package_length_weeks,
-      default_cost_per_cycle: pkg.default_cost_per_cycle,
-      is_active: pkg.is_active,
-      notes: pkg.notes || null,
+      bill_cycle_length_weeks: pkg.bill_cycle_length_weeks,
+      package_length_weeks: 0,
+      default_cost_per_cycle: null,
+      is_active: true,
+      notes: null,
+      until_cancelled: pkg.until_cancelled ?? false,
+      pif: pkg.pif ?? false,
+      pif_cost: pkg.pif_cost,
     })
     setEditDialogOpen(true)
   }
@@ -471,7 +487,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       alert('Please enter a package name')
       return
     }
-    if (billingType !== 'PIF' && formData.cycle_length_weeks <= 0) {
+    if (billingType !== 'PIF' && formData.bill_cycle_length_weeks <= 0) {
       alert('Please enter a valid cycle length (in weeks)')
       return
     }
@@ -494,20 +510,15 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       // First, upsert the package
       // Map UI state to database fields
       const packageData: PackageFormData = {
-        ...formData,
-        cycle_length_weeks: billingType === 'PIF' ? null : formData.cycle_length_weeks,
-        default_cost_per_cycle: billingType === 'PIF' ? null : finalCost,
-        notes: formData.notes || null,
-        'until cancelled': billingType === 'PIF' ? false : isIndefinite,
+        name: formData.name,
+        description: formData.description ?? null,
+        bill_cycle_length_weeks: billingType === 'PIF' ? null : formData.bill_cycle_length_weeks,
+        until_cancelled: billingType === 'PIF' ? false : isIndefinite,
         pif: billingType === 'PIF',
         pif_cost: billingType === 'PIF' ? finalCost : null,
+        ...(editingPackage?.id ? { id: editingPackage.id } : {}),
       }
-      // Log the package data before sending to help debug
-      console.log('Creating package with data:', {
-        ...packageData,
-        cycle_length_weeks: packageData.cycle_length_weeks,
-        package_length_weeks: packageData.package_length_weeks,
-      })
+      console.log('Creating package with data:', packageData)
       
       const savedPackage = await upsertPackage(packageData)
 
@@ -532,7 +543,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       // Create package_services entries for all configured services
       const packageServicesToCreate: PackageServiceFormData[] = []
       const isPIF = billingType === 'PIF'
-      const billingCycleWeeks = formData.cycle_length_weeks || 1
+      const billingCycleWeeks = formData.bill_cycle_length_weeks || 1
 
       // Sessions
       if (offeringSessions === true && sessionServiceId && sessionUnits && sessionUnits > 0) {
@@ -734,7 +745,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       setFormData({
         name: '',
         description: null,
-        cycle_length_weeks: 0,
+        bill_cycle_length_weeks: 0,
         package_length_weeks: 0,
         default_cost_per_cycle: 0,
         is_active: true,
@@ -799,12 +810,9 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                   <th className="text-left font-medium text-foreground px-4 py-3">Name</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Description</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Cycle length</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Package length</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Cost per cycle</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">PIF</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Until cancelled</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Active</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Notes</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Renewal</th>
                   <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
                 </tr>
               </thead>
@@ -819,21 +827,14 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                       {pkg.description ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-foreground">
-                      {pkg.cycle_length_weeks != null ? `${pkg.cycle_length_weeks} wk` : pkg.pif ? 'N/A' : '—'}
+                      {pkg.bill_cycle_length_weeks != null ? `${pkg.bill_cycle_length_weeks} wk` : pkg.pif ? 'N/A' : '—'}
                     </td>
-                    <td className="px-4 py-3 text-foreground">{pkg.package_length_weeks} wk</td>
                     <td className="px-4 py-3 text-foreground">
-                      {pkg.default_cost_per_cycle != null ? `$${Number(pkg.default_cost_per_cycle).toFixed(2)}` : pkg.pif && pkg.pif_cost != null ? `$${Number(pkg.pif_cost).toFixed(2)}` : '—'}
+                      {pkg.pif ? (pkg.pif_cost != null ? `Yes ($${Number(pkg.pif_cost).toFixed(2)})` : 'Yes') : 'No'}
                     </td>
-                    <td className="px-4 py-3 text-foreground">{pkg.pif ? 'Yes' : 'No'}</td>
-                    <td className="px-4 py-3 text-foreground">{pkg['until cancelled'] ? 'Yes' : 'No'}</td>
-                    <td className="px-4 py-3">
-                      <span className={pkg.is_active ? 'text-green-500 font-medium' : 'text-muted-foreground'}>
-                        {pkg.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[160px] truncate" title={pkg.notes ?? undefined}>
-                      {pkg.notes ?? '—'}
+                    <td className="px-4 py-3 text-foreground">{pkg.until_cancelled ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      {pkg.renewal_date ? new Date(pkg.renewal_date).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
@@ -964,7 +965,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                       const newBillingType = e.target.value as BillingType
                       setBillingType(newBillingType)
                       if (newBillingType === 'PIF') {
-                        setFormData({ ...formData, cycle_length_weeks: 0 })
+                        setFormData({ ...formData, bill_cycle_length_weeks: 0 })
                       }
                     }}
                     className="w-full bg-input text-foreground border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
@@ -986,10 +987,10 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                     <Input
                       type="number"
                       min="1"
-                      value={formData.cycle_length_weeks || ''}
+                      value={formData.bill_cycle_length_weeks || ''}
                       onChange={(e) => {
                         const cycleWeeks = parseInt(e.target.value) || 0
-                        setFormData({ ...formData, cycle_length_weeks: cycleWeeks })
+                        setFormData({ ...formData, bill_cycle_length_weeks: cycleWeeks })
                         // Auto-adjust package length to be a multiple if it's not indefinite
                         if (!isIndefinite && formData.package_length_weeks > 0 && cycleWeeks > 0) {
                           const adjustedLength = Math.ceil(formData.package_length_weeks / cycleWeeks) * cycleWeeks
@@ -1046,11 +1047,11 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                               totalWeeks = value * 4
                             }
                             
-                            if (billingType !== 'PIF' && formData.cycle_length_weeks > 0 && totalWeeks > 0) {
+                            if (billingType !== 'PIF' && formData.bill_cycle_length_weeks > 0 && totalWeeks > 0) {
                               // Ensure it's a multiple of cycle length for recurring
-                              // Only divide if cycle_length_weeks > 0 to prevent division by zero
-                              const adjustedWeeks = formData.cycle_length_weeks > 0
-                                ? Math.ceil(totalWeeks / formData.cycle_length_weeks) * formData.cycle_length_weeks
+                              // Only divide if bill_cycle_length_weeks > 0 to prevent division by zero
+                              const adjustedWeeks = formData.bill_cycle_length_weeks > 0
+                                ? Math.ceil(totalWeeks / formData.bill_cycle_length_weeks) * formData.bill_cycle_length_weeks
                                 : totalWeeks
                               setFormData({ ...formData, package_length_weeks: adjustedWeeks })
                             } else {
@@ -1061,7 +1062,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                           placeholder={
                             billingType === 'PIF'
                               ? `Total package duration in ${durationUnit}`
-                              : `Must be a multiple of ${formData.cycle_length_weeks || 'billing cycle'} weeks`
+                              : `Must be a multiple of ${formData.bill_cycle_length_weeks || 'billing cycle'} weeks`
                           }
                           className="bg-input text-foreground border-border flex-1"
                         />
@@ -1086,11 +1087,11 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                         </select>
                       </div>
                     )}
-                    {!isIndefinite && billingType !== 'PIF' && formData.cycle_length_weeks > 0 && formData.package_length_weeks > 0 && (
+                    {!isIndefinite && billingType !== 'PIF' && formData.bill_cycle_length_weeks > 0 && formData.package_length_weeks > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {formData.package_length_weeks % formData.cycle_length_weeks === 0
-                          ? `✓ ${formData.package_length_weeks / formData.cycle_length_weeks} billing cycles`
-                          : `⚠ Must be a multiple of ${formData.cycle_length_weeks} weeks`}
+                        {formData.package_length_weeks % formData.bill_cycle_length_weeks === 0
+                          ? `✓ ${formData.package_length_weeks / formData.bill_cycle_length_weeks} billing cycles`
+                          : `⚠ Must be a multiple of ${formData.bill_cycle_length_weeks} weeks`}
                       </p>
                     )}
                   </div>
@@ -1808,7 +1809,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                 <div className="space-y-4">
                   {(() => {
                     const calculatedCost = calculateCosts()
-                    const cycleWeeks = formData.cycle_length_weeks || 1
+                    const cycleWeeks = formData.bill_cycle_length_weeks || 1
                     const totalWeeks = formData.package_length_weeks || (billingType === 'PIF' ? 0 : cycleWeeks)
 
                     return (
@@ -2148,7 +2149,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                       )}
                       <p><span className="text-muted-foreground">Billing Type:</span> <span className="text-foreground capitalize">{billingType.replace('_', ' ')}</span></p>
                       {billingType !== 'PIF' && (
-                        <p><span className="text-muted-foreground">Cycle Length:</span> <span className="text-foreground">{formData.cycle_length_weeks} weeks</span></p>
+                        <p><span className="text-muted-foreground">Cycle Length:</span> <span className="text-foreground">{formData.bill_cycle_length_weeks} weeks</span></p>
                       )}
                       {!isIndefinite && formData.package_length_weeks > 0 && (
                         <p><span className="text-muted-foreground">Total Duration:</span> <span className="text-foreground">{formData.package_length_weeks} weeks</span></p>
@@ -2295,9 +2296,9 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                         return (
                           <>
                             <p><span className="text-muted-foreground">Per-Cycle Cost:</span> <span className="text-foreground font-semibold">${finalCost.toFixed(2)}</span></p>
-                            {!isIndefinite && formData.package_length_weeks > 0 && formData.cycle_length_weeks > 0 && billingType !== 'PIF' && (
+                            {!isIndefinite && formData.package_length_weeks > 0 && formData.bill_cycle_length_weeks > 0 && billingType !== 'PIF' && (
                               <p className="text-xs text-muted-foreground">
-                                Total over {formData.package_length_weeks} weeks: ${(finalCost * (formData.package_length_weeks / formData.cycle_length_weeks)).toFixed(2)}
+                                Total over {formData.package_length_weeks} weeks: ${(finalCost * (formData.package_length_weeks / formData.bill_cycle_length_weeks)).toFixed(2)}
                               </p>
                             )}
                             {billingType === 'recurring_with_down_payment' && downPayment > 0 && (
@@ -2413,8 +2414,8 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
               <Input
                 type="number"
                 min="1"
-                value={formData.cycle_length_weeks || ''}
-                onChange={(e) => setFormData({ ...formData, cycle_length_weeks: parseInt(e.target.value) || 0 })}
+                value={formData.bill_cycle_length_weeks || ''}
+                onChange={(e) => setFormData({ ...formData, bill_cycle_length_weeks: parseInt(e.target.value) || 0 })}
                 placeholder="Number of weeks per cycle"
                 className="bg-input text-foreground border-border"
               />

@@ -38,8 +38,21 @@ going to add backend failsafe for insufficient payments
 person packages seems sufficient... 
 going to have to test out this flow with edge cases, and update the UI. 
 
-going to have to figure out if we need another source of truth from non-
-paid obligations, like assigning workouts, unassigned workouts, etc 
+person packages will also be the source of truth for included 
+consumables. 
 
+payments should only reference a contract right?
 
+---
+Schema sync (helpers updated Aug 13/14 2026):
+Table names in the schema dump ARE included as top-level keys:
+payments, contracts, person_packages, packages.
+
+Notable column renames / changes reflected in fetch+upsert helpers:
+- packages/contracts: cycle_length_weeks -> bill_cycle_length_weeks;
+  "until cancelled" -> until_cancelled;
+  default_cost_per_cycle -> cost_per_bill_cycle (contracts only; packages no longer store recurring cost)
+- packages: dropped package_length_weeks, is_active, notes; added renewal_date, start_date, person_id, trainer_id
+- person_packages: dropped start_date/end_date; added payment_date, next_payment_date, payment_id, contract_id
+- payments: dropped billing_period_*; added return_payment_or_no; contract_id required
 

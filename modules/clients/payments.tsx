@@ -97,7 +97,7 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
         amountNum,
         contract.pif,
         contract.pif_cost,
-        contract.default_cost_per_cycle
+        contract.cost_per_bill_cycle
       )
       if (!validation.valid) {
         setAmountError(validation.error ?? 'Invalid amount for this contract')
@@ -119,12 +119,10 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
           amount: amountNum,
           processed_at: processedAt,
           status: existing.status ?? 'completed',
-          payment_type: existing.payment_type,
+          payment_type: existing.payment_type || (contract.pif ? 'pif' : 'recurring'),
         })
       } else {
-        await applyPaymentToPersonPackages(personId, contract.package_id, amountNum)
-
-        await upsertPayment({
+        const created = await upsertPayment({
           contract_id: contract.id,
           trainer_id: contract.trainer_id,
           amount: amountNum,
@@ -134,6 +132,13 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
           processed_at: processedAt,
           generated_obligations: true,
         })
+
+        await applyPaymentToPersonPackages(
+          personId,
+          contract.id,
+          amountNum,
+          created.id != null ? String(created.id) : null
+        )
       }
 
       resetForm()
@@ -195,8 +200,8 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
                       <option key={c.id} value={c.id}>
                         {c.name}
                         {c.pif && c.pif_cost != null ? ` (PIF $${Number(c.pif_cost).toFixed(2)})` : ''}
-                        {!c.pif && c.default_cost_per_cycle != null
-                          ? ` ($${Number(c.default_cost_per_cycle).toFixed(2)}/cycle)`
+                        {!c.pif && c.cost_per_bill_cycle != null
+                          ? ` ($${Number(c.cost_per_bill_cycle).toFixed(2)}/cycle)`
                           : ''}
                       </option>
                     ))}

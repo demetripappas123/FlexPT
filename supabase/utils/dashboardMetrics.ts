@@ -37,7 +37,7 @@ export function getTrainedRevenueForSession(personPackage: PersonPackage | undef
   return unitCost
 }
 
-/** Unique billing-cycle start dates for person_packages of a given package. */
+/** Unique payment / next-payment dates for person_packages of a given package. */
 export function uniqueCycleStartDates(
   rows: PersonPackage[],
   packageId: string,
@@ -45,16 +45,19 @@ export function uniqueCycleStartDates(
 ): string[] {
   const dates = rows
     .filter((pp) => pp.package_id === packageId && (!statusFilter || pp.status === statusFilter))
-    .map((pp) => pp.start_date)
+    .map((pp) => pp.payment_date ?? pp.next_payment_date)
+    .filter((d): d is string => d != null)
   return [...new Set(dates)].sort()
 }
 
+/** Whether a person_package's payment window overlaps [rangeStart, rangeEnd]. */
 export function personPackagesOverlapRange(
   pp: PersonPackage,
   rangeStart: Date,
   rangeEnd: Date
 ): boolean {
-  const ppStart = new Date(pp.start_date)
-  const ppEnd = new Date(pp.end_date)
-  return ppStart <= rangeEnd && ppEnd >= rangeStart
+  const anchor = pp.payment_date ?? pp.next_payment_date
+  if (!anchor) return false
+  const d = new Date(anchor)
+  return d >= rangeStart && d <= rangeEnd
 }

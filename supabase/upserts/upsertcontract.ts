@@ -3,11 +3,34 @@ import { Contract, ContractStatus } from '../fetches/fetchcontracts'
 import { Package } from '../fetches/fetchpackages'
 
 /**
- * contracts table schema: includes status (active | frozen | cancelled).
+ * contracts table schema (public.contracts).
  */
 export type ContractFormData =
-  | { id: string; person_id: string; trainer_id: string | null; start_date: string | null; status?: ContractStatus; package_id?: string | null; name: string; description: string | null; cycle_length_weeks: number | null; package_length_weeks: number; default_cost_per_cycle: number | null; is_active: boolean; notes: string | null; pif: boolean; pif_cost: number | null; 'until cancelled': boolean }
-  | { person_id: string; trainer_id: string | null; start_date: string; package: Package }
+  | {
+      id: string
+      person_id: string | null
+      trainer_id: string | null
+      start_date: string | null
+      status?: ContractStatus | null
+      package_id?: string | null
+      name: string
+      description: string | null
+      bill_cycle_length_weeks: number | null
+      cost_per_bill_cycle: number | null
+      pif: boolean | null
+      pif_cost: number | null
+      until_cancelled: boolean | null
+      renewal_date?: string | null
+    }
+  | {
+      person_id: string
+      trainer_id: string | null
+      start_date: string
+      package: Package
+      /** Recurring cost lives on contracts, not packages — pass explicitly when creating. */
+      cost_per_bill_cycle?: number | null
+      renewal_date?: string | null
+    }
 
 /** Normalize to date-only YYYY-MM-DD */
 function toDateOnly(isoOrDate: string | null | undefined): string | null {
@@ -34,14 +57,12 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       package_id: contractData.package_id ?? null,
       name: contractData.name,
       description: contractData.description ?? null,
-      cycle_length_weeks: contractData.cycle_length_weeks ?? null,
-      package_length_weeks: contractData.package_length_weeks,
-      default_cost_per_cycle: contractData.default_cost_per_cycle ?? null,
-      is_active: contractData.is_active ?? true,
-      notes: contractData.notes ?? null,
+      bill_cycle_length_weeks: contractData.bill_cycle_length_weeks ?? null,
+      cost_per_bill_cycle: contractData.cost_per_bill_cycle ?? null,
       pif: contractData.pif ?? false,
       pif_cost: contractData.pif_cost ?? null,
-      'until cancelled': contractData['until cancelled'] ?? false,
+      until_cancelled: contractData.until_cancelled ?? false,
+      renewal_date: toDateOnly(contractData.renewal_date),
     }
   } else if ('package' in contractData && contractData.package) {
     const pkg = contractData.package
@@ -51,16 +72,14 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       start_date: toDateOnly(contractData.start_date),
       status: 'active',
       package_id: pkg.id,
-      name: pkg.name,
+      name: pkg.name ?? '',
       description: pkg.description ?? null,
-      cycle_length_weeks: pkg.cycle_length_weeks ?? null,
-      package_length_weeks: pkg.package_length_weeks,
-      default_cost_per_cycle: pkg.default_cost_per_cycle ?? null,
-      is_active: pkg.is_active ?? true,
-      notes: pkg.notes ?? null,
+      bill_cycle_length_weeks: pkg.bill_cycle_length_weeks ?? null,
+      cost_per_bill_cycle: contractData.cost_per_bill_cycle ?? null,
       pif: pkg.pif ?? false,
       pif_cost: pkg.pif_cost ?? null,
-      'until cancelled': pkg['until cancelled'] ?? false,
+      until_cancelled: pkg.until_cancelled ?? false,
+      renewal_date: toDateOnly(contractData.renewal_date ?? pkg.renewal_date),
     }
   } else {
     throw new Error('Contract form data must include either id (for update) or package (for create)')
@@ -81,19 +100,19 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
     }
 
     return updatedContract
-  } else {
-    const { data: newContract, error } = await supabase
-      .from('contracts')
-      .insert([data])
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating contract:', error)
-      console.error('Payload sent:', JSON.stringify(data, null, 2))
-      throw error
-    }
-
-    return newContract
   }
+
+  const { data: newContract, error } = await supabase
+    .from('contracts')
+    .insert([data])
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating contract:', error)
+    console.error('Payload sent:', JSON.stringify(data, null, 2))
+    throw error
+  }
+
+  return newContract
 }

@@ -1,26 +1,28 @@
 import { supabase } from '../supabaseClient'
 
 /**
- * person_packages: one row per (person, package, service) per obligation cycle.
+ * person_packages: consumable service entitlements tied to a payment / timeframe.
  * Columns: id, package_id, service_id, unit_cost, created_at, updated_at,
  * is_included, units_per_obligation_cycle, obligation_cycle_length_weeks,
- * person_id, trainer_id, start_date, end_date, status (enum, default 'pending').
+ * person_id, trainer_id, payment_date, status, payment_id, next_payment_date, contract_id.
  */
 export interface PersonPackage {
   id: string
-  person_id: string
   package_id: string
   service_id: string
   unit_cost: number | null
-  is_included: boolean
-  units_per_obligation_cycle: number
-  obligation_cycle_length_weeks: number
+  is_included: boolean | null
+  units_per_obligation_cycle: number | null
+  obligation_cycle_length_weeks: number | null
+  person_id: string | null
   trainer_id: string | null
-  start_date: string
-  end_date: string
-  status: string
-  created_at?: string
-  updated_at?: string
+  payment_date: string | null
+  status: string | null
+  payment_id: string | null
+  next_payment_date: string | null
+  contract_id: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 /**
@@ -85,8 +87,3 @@ export async function fetchPersonPackageById(personPackageId: string): Promise<P
 
   return data
 }
-
-
-
-
-

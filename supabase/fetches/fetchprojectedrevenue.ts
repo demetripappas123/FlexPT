@@ -1,9 +1,7 @@
 import { fetchPeople } from './fetchpeople'
-import { fetchContractsByPersonId } from './fetchcontracts'
+import { fetchContractsByPersonId, Contract } from './fetchcontracts'
 import { fetchPersonPackagesByPersonId } from './fetchpersonpackages'
-import { fetchPackages, Package } from './fetchpackages'
 import { fetchPaymentsByPersonId } from './fetchpayments'
-import { getPaymentTimestamp } from './paymentSchema'
 import {
   personPackagesOverlapRange,
   uniqueCycleStartDates,
@@ -11,21 +9,17 @@ import {
 
 /**
  * EOM projected revenue per client with an active contract:
- * payments already made this month + expected default_cost_per_cycle per pending billing cycle in month.
+ * payments already made this month + expected cost_per_bill_cycle per pending entitlement in month.
  */
 export async function fetchProjectedRevenue(trainerId?: string | null): Promise<number> {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [clients, packages] = await Promise.all([
-    fetchPeople({ isClient: true, trainerId }),
-    fetchPackages(),
-  ])
+  const clients = await fetchPeople({ isClient: true, trainerId })
 
   if (clients.length === 0) return 0
 
-  const packageMap = new Map(packages.map((pkg) => [pkg.id, pkg]))
   let totalMRR = 0
 
   for (const client of clients) {
@@ -37,15 +31,12 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
       ])
 
       const activeContract = contracts.find((c) => {
-        if (c.status !== 'active' || !c.package_id) return false
+        if (c.status !== 'active') return false
         if (trainerId && c.trainer_id !== trainerId) return false
         return true
       })
 
-      if (!activeContract?.package_id) continue
-
-      const pkg = packageMap.get(activeContract.package_id)
-      if (!pkg) continue
+      if (!activeContract) continue
 
       const paymentsThisMonth = allPayments.filter((payment) => {
         const d = new Date(payment.payment_date)
@@ -59,39 +50,52 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
 
       const packageId = activeContract.package_id
       const inMonth = personPackages.filter(
-        (pp) => pp.package_id === packageId && personPackagesOverlapRange(pp, startOfMonth, endOfMonth)
+        (pp) =>
+          (pp.contract_id === activeContract.id ||
+            (packageId != null && pp.package_id === packageId)) &&
+          personPackagesOverlapRange(pp, startOfMonth, endOfMonth)
       )
 
-      const cycleCost = getExpectedCyclePayment(pkg)
+      const cycleCost = getExpectedCyclePayment(activeContract)
       if (cycleCost <= 0) {
         if (expectedRevenue > 0) totalMRR += expectedRevenue
         continue
       }
 
-      const pendingCycleStarts = uniqueCycleStartDates(inMonth, packageId, 'pending')
-      if (pkg.pif) {
-        if (pendingCycleStarts.length > 0 && paymentsThisMonth.length === 0) {
+      const pendingDates = packageId
+        ? uniqueCycleStartDates(inMonth, packageId, 'pending')
+        : [
+            ...new Set(
+              inMonth
+                .filter((pp) => pp.status === 'pending')
+                .map((pp) => pp.payment_date ?? pp.next_payment_date)
+                .filter((d): d is string => d != null)
+            ),
+          ]
+
+      if (activeContract.pif) {
+        if (pendingDates.length > 0 && paymentsThisMonth.length === 0) {
           expectedRevenue += cycleCost
         }
       } else {
-        expectedRevenue += pendingCycleStarts.length * cycleCost
+        expectedRevenue += pendingDates.length * cycleCost
       }
 
-      // If no pending rows but active/paid cycles end before month end, estimate extra cycles
-      if (pendingCycleStarts.length === 0) {
-        const cycleWeeks = Number(pkg.cycle_length_weeks) || 0
+      // Estimate remaining cycles in month from next_payment_date when nothing pending yet
+      if (pendingDates.length === 0) {
+        const cycleWeeks = Number(activeContract.bill_cycle_length_weeks) || 0
         if (cycleWeeks > 0) {
-          const latestEnd = inMonth
-            .map((pp) => new Date(pp.end_date).getTime())
+          const latestNext = inMonth
+            .map((pp) => (pp.next_payment_date ? new Date(pp.next_payment_date).getTime() : 0))
             .sort((a, b) => b - a)[0]
 
-          if (latestEnd) {
-            const latestEndDate = new Date(latestEnd)
-            if (latestEndDate < endOfMonth) {
+          if (latestNext) {
+            const latestNextDate = new Date(latestNext)
+            if (latestNextDate < endOfMonth) {
               const cycleDays = cycleWeeks * 7
               const daysAfter = Math.max(
                 0,
-                (endOfMonth.getTime() - latestEndDate.getTime()) / (1000 * 60 * 60 * 24)
+                (endOfMonth.getTime() - latestNextDate.getTime()) / (1000 * 60 * 60 * 24)
               )
               const extraCycles = Math.ceil(daysAfter / cycleDays)
               expectedRevenue += extraCycles * cycleCost
@@ -111,11 +115,11 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
   return totalMRR || 0
 }
 
-function getExpectedCyclePayment(pkg: Package): number {
-  if (pkg.pif) {
-    const pif = Number(pkg.pif_cost)
+function getExpectedCyclePayment(contract: Contract): number {
+  if (contract.pif) {
+    const pif = Number(contract.pif_cost)
     return !isNaN(pif) && pif > 0 ? pif : 0
   }
-  const perCycle = Number(pkg.default_cost_per_cycle)
+  const perCycle = Number(contract.cost_per_bill_cycle)
   return !isNaN(perCycle) && perCycle > 0 ? perCycle : 0
 }

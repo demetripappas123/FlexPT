@@ -1,19 +1,22 @@
 import { supabase } from '../supabaseClient'
 
+/**
+ * packages — blueprint/template for contracts that can be assigned to clients.
+ */
 export interface Package {
-  id: string // uuid
-  name: string
+  id: string
+  name: string | null
   description: string | null
-  cycle_length_weeks: number | null
-  package_length_weeks: number
-  default_cost_per_cycle: number | null
-  is_active: boolean
-  notes: string | null
-  'until cancelled': boolean
-  pif: boolean
+  pif: boolean | null
   pif_cost: number | null
-  created_at?: string
-  updated_at?: string
+  start_date: string | null
+  person_id: string | null
+  trainer_id: string | null
+  renewal_date: string | null
+  bill_cycle_length_weeks: number | null
+  until_cancelled: boolean | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 /**
@@ -88,4 +91,3 @@ export async function fetchPackagesAssignedToClient(personId: string): Promise<P
 
 /** @deprecated Use fetchPackagesAssignedToClient */
 export const fetchAvailablePackagesForPerson = fetchPackagesAssignedToClient
-

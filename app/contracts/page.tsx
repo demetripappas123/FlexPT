@@ -90,14 +90,12 @@ export default function ContractsPage() {
         package_id: c.package_id ?? null,
         name: c.name,
         description: c.description,
-        cycle_length_weeks: c.cycle_length_weeks,
-        package_length_weeks: c.package_length_weeks,
-        default_cost_per_cycle: c.default_cost_per_cycle,
-        is_active: c.is_active,
-        notes: c.notes,
+        bill_cycle_length_weeks: c.bill_cycle_length_weeks,
+        cost_per_bill_cycle: c.cost_per_bill_cycle,
         pif: c.pif,
         pif_cost: c.pif_cost,
-        'until cancelled': c['until cancelled'],
+        until_cancelled: c.until_cancelled,
+        renewal_date: c.renewal_date,
       })
       await loadData()
     } catch (err) {
@@ -121,14 +119,12 @@ export default function ContractsPage() {
         package_id: c.package_id ?? null,
         name: c.name,
         description: c.description,
-        cycle_length_weeks: c.cycle_length_weeks,
-        package_length_weeks: c.package_length_weeks,
-        default_cost_per_cycle: c.default_cost_per_cycle,
-        is_active: c.is_active,
-        notes: c.notes,
+        bill_cycle_length_weeks: c.bill_cycle_length_weeks,
+        cost_per_bill_cycle: c.cost_per_bill_cycle,
         pif: c.pif,
         pif_cost: c.pif_cost,
-        'until cancelled': c['until cancelled'],
+        until_cancelled: c.until_cancelled,
+        renewal_date: c.renewal_date,
       })
       await loadData()
     } catch (err) {
@@ -177,7 +173,7 @@ export default function ContractsPage() {
       setError('Selected package not found')
       return
     }
-    const untilCancelled = selectedPackage['until cancelled'] === true
+    const untilCancelled = selectedPackage.until_cancelled === true
     const durationNum = parseInt(duration, 10)
     if (!untilCancelled && (!duration || isNaN(durationNum) || durationNum <= 0)) {
       setError('Duration (months) must be greater than 0 for fixed-duration packages')
@@ -195,7 +191,7 @@ export default function ContractsPage() {
     setSaving(true)
     setError(null)
     try {
-      await upsertContract({
+      const contract = await upsertContract({
         person_id: selectedClientId,
         trainer_id: user.id,
         start_date: startDate,
@@ -206,8 +202,8 @@ export default function ContractsPage() {
           personId: selectedClientId,
           packageId: selectedPackageId,
           trainerId: user.id,
+          contractId: contract.id,
           contractStartDate: startDate,
-          durationMonths: untilCancelled ? 0 : durationNum,
           untilCancelled,
         })
       } catch (ppErr: unknown) {
@@ -287,7 +283,7 @@ export default function ContractsPage() {
                   <th className="text-left font-medium text-foreground px-4 py-3">Client</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Name</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Start date</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Package length</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Renewal / end</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Cycle length</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">PIF</th>
@@ -314,9 +310,11 @@ export default function ContractsPage() {
                       <td className="px-4 py-3 text-muted-foreground">
                         {c.start_date ? new Date(c.start_date).toLocaleDateString() : '—'}
                       </td>
-                      <td className="px-4 py-3 text-foreground">{c.package_length_weeks} wk</td>
                       <td className="px-4 py-3 text-foreground">
-                        {c.cycle_length_weeks != null ? `${c.cycle_length_weeks} wk` : '—'}
+                        {c.until_cancelled ? 'Until cancelled' : c.renewal_date ? new Date(c.renewal_date).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-foreground">
+                        {c.bill_cycle_length_weeks != null ? `${c.bill_cycle_length_weeks} wk` : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span className={
@@ -411,7 +409,8 @@ export default function ContractsPage() {
                 {packages.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
-                    {p.default_cost_per_cycle != null && ` — $${Number(p.default_cost_per_cycle).toFixed(2)}/cycle`}
+                    {p.pif && p.pif_cost != null && ` — PIF $${Number(p.pif_cost).toFixed(2)}`}
+                    {!p.pif && p.bill_cycle_length_weeks != null && ` — ${p.bill_cycle_length_weeks} wk cycle`}
                   </option>
                 ))}
               </select>

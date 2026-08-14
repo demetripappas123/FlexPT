@@ -133,7 +133,7 @@ export default function ConversionPage() {
       packageToUse = selectedPackage
     }
 
-    const untilCancelled = packageToUse['until cancelled'] === true
+    const untilCancelled = packageToUse.until_cancelled === true
     if (!untilCancelled && (!contractDuration || parseInt(contractDuration) <= 0)) {
       setError('Contract duration is required and must be greater than 0 for fixed-duration packages')
       return
@@ -144,7 +144,7 @@ export default function ConversionPage() {
     
     try {
       // Create the contract (copies package fields into contract row)
-      await upsertContract({
+      const contract = await upsertContract({
         person_id: person.id,
         trainer_id: user?.id ?? null,
         start_date: firstBillingDate,
@@ -162,13 +162,13 @@ export default function ConversionPage() {
         converted_at: new Date().toISOString(),
       })
 
-      // Create person_packages rows (one per service per obligation cycle); for "until cancelled" only first period
+      // Create person_packages entitlements for this contract (first obligation cycle)
       await createPersonPackagesForContract({
         personId: person.id,
         packageId: packageToUse.id,
         trainerId: user?.id ?? null,
+        contractId: contract.id,
         contractStartDate: firstBillingDate,
-        durationMonths: untilCancelled ? 0 : parseInt(contractDuration),
         untilCancelled,
       })
 
