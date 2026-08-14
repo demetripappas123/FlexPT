@@ -1,5 +1,45 @@
 Date: August 13, 2026
 
-Keys should remain the same, committing from different device so I had to re-add the env. If for some reason supabase operations aren't working, it could be new keys, but shouldn't be.
+Keys should remain the same, committing from 
+different device so I had to re-add the env. 
+If for some reason supabase operations aren't working, 
+it could be new keys, but shouldn't be.
 
-Current status: the contracts table is mainly storing metadata about contract start date, type of contract, end date, billing cycle length, if it is PIF or not, renewal date, etc. The packages table is redundant with a lot of this information, but it is purposed to serve as a blueprint for packages that can be assigned to any client. I will need to assess if it should remain redundant and optimize its purpose. The person packages table is currently disconnected but is intended to be the consumable services tied to a payment and to a timeframe.
+Current status: the contracts table is mainly storing 
+metadata about contract start date, type of contract, 
+end date, billing cycle length, if it is PIF or not, 
+renewal date, etc. The packages table is redundant with 
+a lot of this information, but it is purposed to serve a
+s a blueprint for packages that can be assigned to any 
+client. I will need to assess if it should remain 
+redundant and optimize its purpose. The person 
+packages table is currently disconnected but is 
+intended to be the consumable services tied to a payment
+a timeframe and client / trainer actions (like completing 
+a session)
+
+Upon further reflection, the packages table essentially 
+serves as a template for contracts, while contracts 
+represent actual instances. That is why there are duplicated 
+fields. Perhaps some of that can be refined to just existing 
+in packages, in other words contracts gets slimmed down. 
+But no reason to currently. 
+
+I am thinking that person packages should be precisely, 
+and only, entitlements to services. 
+Payments made under a specific contract should then trigger a row
+creation. This table doesn't need to reference packages, 
+just contracts. 
+
+
+going to add backend failsafe for insufficient payments 
+
+
+person packages seems sufficient... 
+going to have to test out this flow with edge cases, and update the UI. 
+
+going to have to figure out if we need another source of truth from non-
+paid obligations, like assigning workouts, unassigned workouts, etc 
+
+
+
