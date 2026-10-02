@@ -38,12 +38,9 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
 
   // Render protected content with sidebar
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-
-      {/* Main content */}
-      <main className="flex-1 p-8 overflow-auto bg-background">
+      <main className="flex-1 min-h-0 min-w-0 overflow-y-auto p-8 bg-background">
         {children}
       </main>
     </div>

@@ -11,7 +11,6 @@ import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutE
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
-import { incrementPersonPackageUsedUnits } from '@/supabase/upserts/incrementpersonpackageusedunits'
 import {
   Command,
   CommandInput,
@@ -408,16 +407,7 @@ export default function StartSession({
         })
       }
 
-      // Increment used_units in person_package if session has a person_package_id
-      if (session.person_package_id) {
-        try {
-          await incrementPersonPackageUsedUnits(session.person_package_id)
-        } catch (error) {
-          console.error('Error incrementing person package used units:', error)
-          // Don't fail the session completion if this fails
-        }
-      }
-
+      // Remaining entitlement units come from linked sessions, including this one.
       await onSessionComplete()
       alert('Session completed successfully!')
     } catch (error) {

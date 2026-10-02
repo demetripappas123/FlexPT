@@ -1,7 +1,8 @@
 import { supabase } from '../supabaseClient'
 
 /**
- * packages — blueprint/template for contracts that can be assigned to clients.
+ * packages — billing template. Copied onto a contract at assign time.
+ * Instance fields (person, start, renewal, status) live on contracts only.
  */
 export interface Package {
   id: string
@@ -9,10 +10,9 @@ export interface Package {
   description: string | null
   pif: boolean | null
   pif_cost: number | null
-  start_date: string | null
-  person_id: string | null
+  cost_per_bill_cycle: number | null
+  package_length_weeks: number | null
   trainer_id: string | null
-  renewal_date: string | null
   bill_cycle_length_weeks: number | null
   until_cancelled: boolean | null
   created_at?: string | null

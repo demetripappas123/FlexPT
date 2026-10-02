@@ -43,7 +43,7 @@ import { fetchPersonWithWorkouts } from '@/supabase/fetches/fetchpersonwithdata'
 import { fetchPersonPackagesByPersonId } from '@/supabase/fetches/fetchpersonpackages'
 import { fetchPaymentsByPersonId } from '@/supabase/fetches/fetchpayments'
 import { fetchClientNutritionGoals } from '@/supabase/fetches/fetchnutritiongoals'
-import { fetchClientNutritionEntries } from '@/supabase/fetches/fetchnutrition'
+import { fetchClientNutritionDayTotals } from '@/supabase/fetches/fetchnutrition'
 import { fetchContractsByPersonId } from '@/supabase/fetches/fetchcontracts'
 import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import { fetchPersonWorkoutsWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
@@ -161,7 +161,7 @@ export default function PersonPage() {
       setNutritionLoading(true)
       try {
         const [entries, goals] = await Promise.all([
-          fetchClientNutritionEntries(person.id),
+          fetchClientNutritionDayTotals(person.id),
           fetchClientNutritionGoals(person.id),
         ])
         setNutritionEntries(entries)
@@ -211,20 +211,23 @@ export default function PersonPage() {
       const isClient = person.converted_at !== null && person.converted_at !== undefined
       if (!isClient) return
       // If already loaded, don't reload
-      if (personPackages !== null && packages !== null) return
+      if (personPackages !== null && packages !== null && contracts !== null) return
 
       setPackagesLoading(true)
       try {
-        const [ppData, pkgData] = await Promise.all([
+        const [ppData, pkgData, contractsData] = await Promise.all([
           fetchPersonPackagesByPersonId(person.id),
-          fetchPackages(),
+          packages === null ? fetchPackages() : Promise.resolve(packages),
+          contracts === null ? fetchContractsByPersonId(person.id) : Promise.resolve(contracts),
         ])
         setPersonPackages(ppData)
-        setPackages(pkgData)
+        if (packages === null) setPackages(pkgData)
+        if (contracts === null) setContracts(contractsData)
       } catch (err) {
         console.error('Error loading packages data:', err)
         setPersonPackages([])
         setPackages([])
+        if (contracts === null) setContracts([])
       } finally {
         setPackagesLoading(false)
       }
@@ -341,7 +344,8 @@ export default function PersonPage() {
     try {
       const updated = await updateNutritionEntries(person.id, entries)
       if (updated) {
-        setNutritionEntries(updated)
+        const totals = await fetchClientNutritionDayTotals(person.id)
+        setNutritionEntries(totals)
         setIsEditingNutrition(false)
       }
     } catch (err) {
@@ -363,6 +367,20 @@ export default function PersonPage() {
       setContracts(contractsData || [])
     } catch (err) {
       console.error('Error reloading payments:', err)
+    }
+  }
+
+  const handleRefreshContracts = async () => {
+    if (!person) return
+    try {
+      const [contractsData, pkgData] = await Promise.all([
+        fetchContractsByPersonId(person.id),
+        packages === null ? fetchPackages() : Promise.resolve(packages),
+      ])
+      setContracts(contractsData || [])
+      if (packages === null) setPackages(pkgData)
+    } catch (err) {
+      console.error('Error reloading contracts:', err)
     }
   }
 
@@ -439,7 +457,7 @@ export default function PersonPage() {
           onClick={() => setActiveTab('progress')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'progress'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
@@ -450,7 +468,7 @@ export default function PersonPage() {
           onClick={() => setActiveTab('nutrition')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'nutrition'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
@@ -461,7 +479,7 @@ export default function PersonPage() {
           onClick={() => setActiveTab('sessions')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'sessions'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
@@ -472,7 +490,7 @@ export default function PersonPage() {
           onClick={() => setActiveTab('workouts')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'workouts'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
@@ -485,7 +503,7 @@ export default function PersonPage() {
               onClick={() => setActiveTab('packages')}
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'packages'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  ? 'text-primary border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
@@ -496,7 +514,7 @@ export default function PersonPage() {
               onClick={() => setActiveTab('payments')}
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'payments'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  ? 'text-primary border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
@@ -507,7 +525,7 @@ export default function PersonPage() {
               onClick={() => setActiveTab('contracts')}
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'contracts'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  ? 'text-primary border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
@@ -556,11 +574,18 @@ export default function PersonPage() {
                     setAssignMealOpen(true)
                   }}
                   onDateClick={(date) => {
-                    setAssignMealDate(date.toISOString().split('T')[0])
+                    const y = date.getFullYear()
+                    const m = String(date.getMonth() + 1).padStart(2, '0')
+                    const d = String(date.getDate()).padStart(2, '0')
+                    setAssignMealDate(`${y}-${m}-${d}`)
                     setAssignMealOpen(true)
                   }}
                   onMealUpdate={async (meals) => {
                     setAssignedMeals(meals)
+                    if (person) {
+                      const totals = await fetchClientNutritionDayTotals(person.id)
+                      setNutritionEntries(totals)
+                    }
                   }}
                 />
               )}
@@ -1278,7 +1303,11 @@ export default function PersonPage() {
               <p className="text-muted-foreground">Loading packages data...</p>
             </div>
           ) : (
-            <Packages personPackages={personPackages || []} packages={packages || []} />
+            <Packages
+              personPackages={personPackages || []}
+              packages={packages || []}
+              contracts={contracts || []}
+            />
           )}
         </>
       )}
@@ -1307,7 +1336,13 @@ export default function PersonPage() {
               <p className="text-muted-foreground">Loading contracts data...</p>
             </div>
           ) : (
-            <Contracts contracts={contracts || []} packages={packages || []} />
+            <Contracts
+              contracts={contracts || []}
+              packages={packages || []}
+              personId={person.id}
+              trainerId={person.trainer_id ?? user?.id ?? null}
+              onChanged={handleRefreshContracts}
+            />
           )}
         </>
       )}
@@ -1441,8 +1476,12 @@ export default function PersonPage() {
               initialDate={assignMealDate}
               onMealAssigned={async () => {
                 if (person) {
-                  const meals = await fetchAssignedMeals(person.id)
+                  const [meals, totals] = await Promise.all([
+                    fetchAssignedMeals(person.id),
+                    fetchClientNutritionDayTotals(person.id),
+                  ])
                   setAssignedMeals(meals)
+                  setNutritionEntries(totals)
                 }
                 setAssignMealOpen(false)
               }}

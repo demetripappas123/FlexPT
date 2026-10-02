@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { AssignedMeal } from '@/supabase/fetches/fetchassignedmeals'
-import { ChevronLeft, ChevronRight, Check, X, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X, Plus, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { upsertAssignedMeal } from '@/supabase/upserts/upsertassignedmeal'
 
@@ -40,9 +40,8 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
     const map = new Map<string, AssignedMeal[]>()
     
     assignedMeals.forEach(meal => {
-      const mealDate = new Date(meal.assigned_date)
-      const dateKey = mealDate.toISOString().split('T')[0] // YYYY-MM-DD
-      
+      const dateKey = (meal.assigned_date || '').slice(0, 10)
+      if (!dateKey) return
       if (!map.has(dateKey)) {
         map.set(dateKey, [])
       }
@@ -67,23 +66,25 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
     setCurrentWeekStart(monday)
   }
 
-  const handleCompleteMeal = async (mealId: string, e: React.MouseEvent) => {
+  const handleSetStatus = async (
+    meal: AssignedMeal,
+    status: AssignedMeal['status'],
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation()
     try {
-      const meal = assignedMeals.find(m => m.id === mealId)
-      if (meal) {
-        await upsertAssignedMeal({
-          id: meal.id,
-          person_id: meal.person_id,
-          meal_id: meal.meal_id,
-          assigned_date: meal.assigned_date,
-          status: 'completed',
-        })
-        onMealUpdate()
-      }
+      await upsertAssignedMeal({
+        id: meal.id,
+        person_id: meal.person_id,
+        meal_id: meal.meal_id,
+        assigned_date: meal.assigned_date?.slice(0, 10),
+        name: meal.name || meal.meal_name || 'Meal',
+        status,
+      })
+      onMealUpdate()
     } catch (err) {
-      console.error('Error completing meal:', err)
-      alert('Error completing meal. Please try again.')
+      console.error('Error updating meal:', err)
+      alert('Error updating meal. Please try again.')
     }
   }
 
@@ -176,7 +177,7 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
 
         {/* Day Cells */}
         {weekDays.map((date, idx) => {
-          const dateKey = date.toISOString().split('T')[0]
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
           const dayMeals = mealsByDate.get(dateKey) || []
           const today = isToday(date)
           const past = isPast(date)
@@ -213,12 +214,30 @@ export default function MealCalendar({ assignedMeals, onMealUpdate, onMealClick,
                         {getStatusIcon(meal.status)} {meal.meal_name || 'Meal'}
                       </span>
                       {meal.status === 'pending' && (
+                        <div className="flex items-center">
+                          <button
+                            onClick={(e) => handleSetStatus(meal, 'completed', e)}
+                            className="ml-1 p-0.5 hover:bg-green-600/30 rounded"
+                            title="Mark as eaten"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => handleSetStatus(meal, 'skipped', e)}
+                            className="ml-1 p-0.5 hover:bg-red-600/30 rounded"
+                            title="Skip"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                      {meal.status !== 'pending' && (
                         <button
-                          onClick={(e) => handleCompleteMeal(meal.id, e)}
-                          className="ml-1 p-0.5 hover:bg-green-600/30 rounded"
-                          title="Mark as completed"
+                          onClick={(e) => handleSetStatus(meal, 'pending', e)}
+                          className="ml-1 p-0.5 hover:bg-muted rounded"
+                          title="Back to pending"
                         >
-                          <Check className="h-3 w-3" />
+                          <Undo2 className="h-3 w-3" />
                         </button>
                       )}
                     </div>

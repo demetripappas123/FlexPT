@@ -24,13 +24,29 @@ import { useAuth } from '@/context/authcontext'
 type AddEventDialogProps = {
   initialPersonId?: string | null
   initialType?: SessionType
+  initialPersonPackageId?: string | null
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export default function AddEventDialog({ initialPersonId = null, initialType = 'Client Session', trigger }: AddEventDialogProps = {}) {
+export default function AddEventDialog({
+  initialPersonId = null,
+  initialType = 'Client Session',
+  initialPersonPackageId = null,
+  trigger,
+  open: openProp,
+  onOpenChange,
+}: AddEventDialogProps = {}) {
   const router = useRouter()
   const { user } = useAuth()
-  const [open, setOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? openProp : internalOpen
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
   const [type, setType] = useState<SessionType>(initialType)
   const [personId, setPersonId] = useState<string | null>(initialPersonId)
   // Generate time slots in 15-minute intervals (12-hour format with AM/PM)
@@ -80,7 +96,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
   const [prospectNotes, setProspectNotes] = useState('')
   const [prospectLeadSource, setProspectLeadSource] = useState('')
   const [addingProspect, setAddingProspect] = useState(false)
-  const [selectedPersonPackageId, setSelectedPersonPackageId] = useState<string | null>(null)
+  const [selectedPersonPackageId, setSelectedPersonPackageId] = useState<string | null>(initialPersonPackageId)
   const [availablePersonPackages, setAvailablePersonPackages] = useState<PersonPackageWithRemaining[]>([])
   const [packages, setPackages] = useState<any[]>([])
 
@@ -96,6 +112,10 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       setType(initialType)
     }
   }, [initialPersonId, initialType])
+
+  useEffect(() => {
+    if (initialPersonPackageId) setSelectedPersonPackageId(initialPersonPackageId)
+  }, [initialPersonPackageId])
 
   // Load clients, prospects, and packages
   useEffect(() => {
@@ -131,33 +151,35 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
     }
   }, [isTimeDropdownOpen])
 
-  // Load available person packages when client is selected and type is Client Session
-  // This fetches person_packages for the selected client (personId) that are:
-  // - Active status
-  // - Have remaining sessions (used_units < total_units)
+  // Paid session entitlements with remaining units for this client
   useEffect(() => {
     const loadPersonPackages = async () => {
-      const isClientSession = type === 'Client Session'
-      if (isClientSession && personId) {
-        try {
-          // Fetch person_packages for the selected client ID, filtered to active with remaining sessions
-          const personPackages = await fetchPersonPackagesWithRemaining(personId)
-          setAvailablePersonPackages(personPackages)
-          // Reset selection if current selection is no longer available
-          if (selectedPersonPackageId && !personPackages.find(pp => pp.id === selectedPersonPackageId)) {
-            setSelectedPersonPackageId(null)
-          }
-        } catch (err) {
-          console.error('Error loading person packages:', err)
-          setAvailablePersonPackages([])
-        }
-      } else {
+      if (type !== 'Client Session' || !personId) {
         setAvailablePersonPackages([])
-        setSelectedPersonPackageId(null)
+        return
+      }
+      try {
+        const personPackages = await fetchPersonPackagesWithRemaining(personId, {
+          serviceType: 'SESSION',
+          onlyWithRemaining: true,
+          paidOnly: true,
+        })
+        setAvailablePersonPackages(personPackages)
+        setSelectedPersonPackageId((current) => {
+          if (current && personPackages.some((pp) => pp.id === current)) return current
+          if (initialPersonPackageId && personPackages.some((pp) => pp.id === initialPersonPackageId)) {
+            return initialPersonPackageId
+          }
+          if (personPackages.length === 1) return personPackages[0].id
+          return null
+        })
+      } catch (err) {
+        console.error('Error loading person packages:', err)
+        setAvailablePersonPackages([])
       }
     }
     loadPersonPackages()
-  }, [personId, type, selectedPersonPackageId])
+  }, [personId, type, initialPersonPackageId])
 
   const handleAddProspect = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -208,33 +230,34 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       alert('Please select a client or prospect')
       return
     }
-    
+    if (isClientType && !selectedPersonPackageId) {
+      alert('Select a session entitlement to schedule against. Record a payment first if none remain.')
+      return
+    }
+
     setLoading(true)
 
     try {
-      // Combine date and time into ISO string
       const dateTimeString = `${startDate}T${startTime}:00`
       const startDateTime = new Date(dateTimeString)
-      
+
       const newSession = await createSession({
         type,
         person_id: personId,
-        start_time: startDateTime.toISOString(), // Scheduled time
+        start_time: startDateTime.toISOString(),
         trainer_id: user?.id || null,
         person_package_id: selectedPersonPackageId,
         converted: false,
+        status: 'pending',
       })
-      
-      // Navigate to the session page where workout can be assigned
+
       router.push(`/events/${newSession.id}`)
-      
-      // Reset form
-      setType('Client Session')
-      setPersonId(null)
-      setSelectedPersonPackageId(null)
+
+      setType(initialType)
+      setPersonId(initialPersonId)
+      setSelectedPersonPackageId(initialPersonPackageId)
       setStartDate(getInitialDate())
       setStartTime(getInitialTime())
-      // Close the dialog
       setOpen(false)
     } catch (err) {
       console.error('Error creating session:', err)
@@ -246,16 +269,18 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>
-          {trigger}
-        </DialogTrigger>
-      ) : (
-        <DialogTrigger asChild>
-          <Button className="bg-primary text-primary-foreground font-semibold hover:bg-primary/90 cursor-pointer">
-            Add Event
-          </Button>
-        </DialogTrigger>
+      {!isControlled && (
+        trigger ? (
+          <DialogTrigger asChild>
+            {trigger}
+          </DialogTrigger>
+        ) : (
+          <DialogTrigger asChild>
+            <Button className="bg-primary text-primary-foreground font-semibold hover:bg-primary/90 cursor-pointer">
+              Add Event
+            </Button>
+          </DialogTrigger>
+        )
       )}
       <DialogContent className="sm:max-w-lg bg-card text-card-foreground border border-border">
         <DialogHeader>
@@ -318,30 +343,36 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
             </div>
           </div>
 
-          {/* Person Package Selection - only for Client Sessions */}
+          {/* Session entitlement — required for client sessions */}
           {isClientType && personId && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
-                Package (Optional)
+                Session entitlement *
               </label>
               <select
                 value={selectedPersonPackageId ?? ''}
                 onChange={(e) => setSelectedPersonPackageId(e.target.value || null)}
                 className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                required
               >
-                <option value="">No package (manual session)</option>
+                <option value="">Select entitlement</option>
                 {availablePersonPackages.map((pp) => {
-                  const pkg = packages.find(p => p.id === pp.package_id)
+                  const pkg = packages.find((p) => p.id === pp.package_id)
+                  const paid = pp.payment_date
+                    ? new Date(pp.payment_date).toLocaleDateString()
+                    : 'unpaid date'
                   return (
                     <option key={pp.id} value={pp.id}>
-                      {pkg?.name || 'Unknown Package'} - {pp.remaining_units} out of {pp.total_units} sessions remaining
+                      {(pkg?.name || 'Package') + ' — '}
+                      {pp.service_name || 'Session'} ({pp.remaining_units} of {pp.total_units} left, paid {paid})
                     </option>
                   )
                 })}
               </select>
-              {availablePersonPackages.length === 0 && personId && (
+              {availablePersonPackages.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No active packages with remaining sessions found for this client.
+                  No remaining paid sessions for this client. Record a payment on their contract first.
+                  Paying 2× the cycle cost grants 2× the sessions.
                 </p>
               )}
             </div>
@@ -414,7 +445,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
             <Button
               type="submit"
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:bg-primary/50 cursor-pointer disabled:cursor-not-allowed"
-              disabled={loading}
+              disabled={loading || (isClientType && (!selectedPersonPackageId || availablePersonPackages.length === 0))}
             >
               {loading ? 'Saving...' : 'Save'}
             </Button>

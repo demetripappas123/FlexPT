@@ -20,7 +20,7 @@ import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchPersonById } from '@/supabase/fetches/fetchpeople'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { UserCheck } from 'lucide-react'
-import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
+import { formatRangeDisplay, parseRangeInput } from '@/supabase/utils/rangeparse'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +31,7 @@ export default function EventPage() {
   const [session, setSession] = useState<SessionWithExercises | null>(null)
   const [loading, setLoading] = useState(true)
   const [assignWorkoutOpen, setAssignWorkoutOpen] = useState(false)
+  const [assignInitialOption, setAssignInitialOption] = useState<'create' | 'program' | null>(null)
   const [editWorkoutOpen, setEditWorkoutOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
@@ -113,7 +114,7 @@ export default function EventPage() {
 
   // Check if session is cancelled
   const isCancelled = session.status === 'canceled_with_charge' || session.status === 'canceled_no_charge'
-  const isCompleted = session.status === 'completed' || session.end_time
+  const isCompleted = session.status === 'completed'
   const isInProgress = session.status === 'in_progress'
 
   // Handle completed or cancelled status - show prescribed vs actual sets
@@ -401,15 +402,31 @@ export default function EventPage() {
       </div>
 
       {!isCancelled && !session.workout_id && (
-        <div className="mt-8">
-          <Button
-            onClick={() => {
-              setAssignWorkoutOpen(true)
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
-          >
-            Assign Workout
-          </Button>
+        <div className="mt-8 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Assign a workout now, then start the session around the scheduled time to open the live workout UI.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => {
+                setAssignInitialOption('program')
+                setAssignWorkoutOpen(true)
+              }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+            >
+              Assign from program
+            </Button>
+            <Button
+              onClick={() => {
+                setAssignInitialOption('create')
+                setAssignWorkoutOpen(true)
+              }}
+              variant="outline"
+              className="cursor-pointer"
+            >
+              Design on the fly
+            </Button>
+          </div>
         </div>
       )}
 
@@ -541,10 +558,11 @@ export default function EventPage() {
 
       <AssignWorkout
         open={assignWorkoutOpen}
+        initialOption={assignInitialOption}
         onOpenChange={(open) => {
           setAssignWorkoutOpen(open)
-          // Reload session data when dialog closes
           if (!open) {
+            setAssignInitialOption(null)
             const reloadSession = async () => {
               const sessionWithExercises = await fetchSessionWithExercises(id)
               if (sessionWithExercises) {

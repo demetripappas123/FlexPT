@@ -223,8 +223,8 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
             onClick={() => setDaysView(60)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               daysView === 60
-                ? 'bg-orange-500 text-white'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             } cursor-pointer`}
           >
             60 Days
@@ -233,8 +233,8 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
             onClick={() => setDaysView(90)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               daysView === 90
-                ? 'bg-orange-500 text-white'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             } cursor-pointer`}
           >
             90 Days

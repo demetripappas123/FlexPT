@@ -3,14 +3,14 @@
 
 import Link from 'next/link'
 import React, { useState } from 'react'
-import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box, FileText } from 'lucide-react'
+import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Sidebar() {
   const [libraryExpanded, setLibraryExpanded] = useState(true)
 
   return (
-    <aside className="w-64 bg-sidebar text-sidebar-foreground shadow-lg border-r border-sidebar-border">
+    <aside className="w-64 h-full shrink-0 overflow-y-auto bg-sidebar text-sidebar-foreground shadow-lg border-r border-sidebar-border">
       <div className="flex flex-col h-full">
         {/* Logo / Brand */}
         <div className="p-6 border-b border-sidebar-border flex items-center justify-between">
@@ -59,13 +59,6 @@ export default function Sidebar() {
             >
               <Box className="h-5 w-5 mr-3" />
               <span className="font-medium">Packages</span>
-            </Link>
-            <Link
-              href="/contracts"
-              className="flex items-center px-4 py-3 text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <FileText className="h-5 w-5 mr-3" />
-              <span className="font-medium">Contracts</span>
             </Link>
             
             {/* Library Section */}

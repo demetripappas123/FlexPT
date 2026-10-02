@@ -79,8 +79,8 @@ export default function PaymentsPage() {
         trainer_id: contract.trainer_id,
         amount: amountNum,
         currency: 'USD',
-        status: 'completed',
-        payment_type: contract.pif ? 'pif' : 'recurring',
+        status: 'succeeded',
+        payment_type: contract.pif ? 'PIF' : 'recurring',
         processed_at: processedAt,
         generated_obligations: true,
       })
@@ -89,7 +89,8 @@ export default function PaymentsPage() {
         contract.person_id,
         contract.id,
         amountNum,
-        created.id != null ? String(created.id) : null
+        created.id != null ? String(created.id) : null,
+        paymentDate
       )
 
       const paymentsData = await fetchPayments()

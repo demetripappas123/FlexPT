@@ -1,4 +1,6 @@
 import { supabase } from '@/supabase/supabaseClient'
+import { fetchCompletedMealMacrosByDate } from './fetchcompletedmealmacros'
+import { mergeNutritionDayTotals } from '../utils/nutritionDayTotals'
 
 export interface NutritionEntry {
   id: string
@@ -8,6 +10,16 @@ export interface NutritionEntry {
   protein_grams: number | null
   carbs_grams: number | null
   fats_grams: number | null
+  extra_calories?: number | null
+  extra_protein_grams?: number | null
+  extra_carbs_grams?: number | null
+  extra_fats_grams?: number | null
+  from_meals?: {
+    calories: number
+    protein_grams: number
+    carbs_grams: number
+    fats_grams: number
+  }
   created_at: string
   updated_at: string
 }
@@ -59,5 +71,19 @@ export async function fetchClientNutritionEntries(clientId: string, trainerId?: 
   }
 
   return data || []
+}
+
+/**
+ * Daily display totals: extra (typed) + macros from completed meal occurrences.
+ */
+export async function fetchClientNutritionDayTotals(
+  clientId: string,
+  trainerId?: string | null
+): Promise<NutritionEntry[]> {
+  const [extras, mealMacros] = await Promise.all([
+    fetchClientNutritionEntries(clientId, trainerId),
+    fetchCompletedMealMacrosByDate(clientId),
+  ])
+  return mergeNutritionDayTotals(extras, mealMacros, clientId)
 }
 

@@ -44,33 +44,33 @@ export async function fetchAssignedMeals(personId: string): Promise<AssignedMeal
     if (!data || data.length === 0) return []
 
     // Fetch meal names from source tables (day_meals and meals_templates)
-    const mealIds = [...new Set(data.map(am => am.meal_id))]
+    const mealIds = [...new Set(data.map(am => am.meal_id).filter(Boolean))]
     const mealNamesMap = new Map<string, string | null>()
-    
-    // Try to fetch from day_meals first
-    const { data: dayMealsData } = await supabase
-      .from('day_meals')
-      .select('id, name')
-      .in('id', mealIds)
-    
-    if (dayMealsData) {
-      dayMealsData.forEach(meal => {
-        mealNamesMap.set(meal.id, meal.name)
-      })
-    }
-    
-    // Fetch remaining meal IDs from meals_templates
-    const remainingIds = mealIds.filter(id => !mealNamesMap.has(id))
-    if (remainingIds.length > 0) {
-      const { data: templateMealsData } = await supabase
-        .from('meals_templates')
+
+    if (mealIds.length > 0) {
+      const { data: dayMealsData } = await supabase
+        .from('day_meals')
         .select('id, name')
-        .in('id', remainingIds)
-      
-      if (templateMealsData) {
-        templateMealsData.forEach(meal => {
+        .in('id', mealIds)
+
+      if (dayMealsData) {
+        dayMealsData.forEach(meal => {
           mealNamesMap.set(meal.id, meal.name)
         })
+      }
+
+      const remainingIds = mealIds.filter(id => !mealNamesMap.has(id))
+      if (remainingIds.length > 0) {
+        const { data: templateMealsData } = await supabase
+          .from('meals_templates')
+          .select('id, name')
+          .in('id', remainingIds)
+
+        if (templateMealsData) {
+          templateMealsData.forEach(meal => {
+            mealNamesMap.set(meal.id, meal.name)
+          })
+        }
       }
     }
 
@@ -88,7 +88,7 @@ export async function fetchAssignedMeals(personId: string): Promise<AssignedMeal
     // Combine assigned meals with their foods and meal names
     return data.map(am => ({
       ...am,
-      meal_name: am.meal_id ? (mealNamesMap.get(am.meal_id) || null) : am.name, // Use name field if no meal_id
+      meal_name: am.name || (am.meal_id ? mealNamesMap.get(am.meal_id) : null) || 'Meal',
       foods: foodsByOccurrenceId.get(am.id) || [],
     })) as AssignedMeal[]
   } catch (err) {

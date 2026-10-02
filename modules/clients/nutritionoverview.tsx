@@ -52,7 +52,12 @@ export default function NutritionOverview({
 
       <div className="p-4 bg-card border border-border rounded-md">
         <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold text-foreground">Nutrition</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Nutrition</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Daily totals are completed meals plus extras you type. Editing a day changes extras only.
+            </p>
+          </div>
           {!isEditingNutrition && (
             <button
               onClick={onEditClick}

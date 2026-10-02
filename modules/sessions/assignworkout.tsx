@@ -14,22 +14,24 @@ import { fetchDayExercises } from '@/supabase/fetches/fetchdayexercises'
 import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { useAuth } from '@/context/authcontext'
 
+type WorkoutOption = 'create' | 'program' | 'existing' | null
+
 type AssignWorkoutProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   sessionId: string
   sessionType?: SessionType
   personId?: string | null
+  initialOption?: WorkoutOption
 }
-
-type WorkoutOption = 'create' | 'program' | 'existing' | null
 
 export default function AssignWorkout({ 
   open, 
   onOpenChange, 
   sessionId,
   sessionType,
-  personId
+  personId,
+  initialOption = null,
 }: AssignWorkoutProps) {
   const { user } = useAuth()
   const [selectedOption, setSelectedOption] = useState<WorkoutOption>(null)
@@ -58,6 +60,14 @@ export default function AssignWorkout({
     setSelectedDayId(null)
     onOpenChange(false)
   }
+
+  useEffect(() => {
+    if (!open) return
+    if (initialOption === 'create' || initialOption === 'program') {
+      handleOptionSelect(initialOption)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialOption])
 
   // Fetch programs when 'program' option is selected
   useEffect(() => {
@@ -128,8 +138,6 @@ export default function AssignWorkout({
         trainer_id: user?.id || null,
         type: sessionType || 'Client Session',
         workout_id: workout.id,
-        start_time: null,
-        end_time: null,
         converted: false,
       })
 

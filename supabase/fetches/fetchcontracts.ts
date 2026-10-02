@@ -20,6 +20,7 @@ export interface Contract {
   status: ContractStatus | null
   package_id: string | null
   renewal_date: string | null
+  suggested_sessions_per_week?: number | null
   created_at?: string | null
   updated_at?: string | null
 }

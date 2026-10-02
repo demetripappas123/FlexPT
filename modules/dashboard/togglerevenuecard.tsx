@@ -30,14 +30,16 @@ export default function ToggleRevenueCard({
   const [historicalData, setHistoricalData] = useState<HistoricalRevenuePoint[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [chartColors, setChartColors] = useState({
-    textPrimary: '#d1d5db',
+    textPrimary: '#9ca3af',
+    line: '#7c3aed',
   })
 
   useEffect(() => {
     const root = document.documentElement
     const computedStyle = getComputedStyle(root)
     setChartColors({
-      textPrimary: computedStyle.getPropertyValue('--text-secondary').trim() || '#d1d5db',
+      textPrimary: computedStyle.getPropertyValue('--muted-foreground').trim() || '#9ca3af',
+      line: computedStyle.getPropertyValue('--primary').trim() || '#7c3aed',
     })
   }, [theme])
 
@@ -155,42 +157,23 @@ export default function ToggleRevenueCard({
           type: 'line',
           data: values,
           smooth: true,
-          symbol: 'circle',
-          symbolSize: 8,
+          symbol: 'none',
           lineStyle: {
-            color: '#f97316',
-            width: 3,
+            color: chartColors.line,
+            width: 2,
+            opacity: 0.85,
           },
           itemStyle: {
-            color: '#f97316',
+            color: chartColors.line,
           },
           areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                {
-                  offset: 0,
-                  color: 'rgba(249, 115, 22, 0.6)', // Orange with opacity
-                },
-                {
-                  offset: 0.5,
-                  color: 'rgba(249, 115, 22, 0.3)',
-                },
-                {
-                  offset: 1,
-                  color: 'rgba(249, 115, 22, 0)', // Transparent
-                },
-              ],
-            },
+            color: chartColors.line,
+            opacity: 0.18,
           },
           emphasis: {
             focus: 'series',
             itemStyle: {
-              color: '#f97316',
+              color: chartColors.line,
             },
           },
         },
@@ -203,10 +186,10 @@ export default function ToggleRevenueCard({
   }, [historicalData, chartColors])
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 min-h-[300px] flex flex-col relative overflow-hidden">
+    <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] h-full flex flex-col relative overflow-hidden">
       {/* Background Line Chart */}
       {historicalData.length > 0 && !loadingHistory && chartOption && (
-        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.6, zIndex: 0 }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.7, zIndex: 0 }}>
           <ReactECharts
             option={chartOption}
             style={{ width: '100%', height: '100%' }}
@@ -217,8 +200,8 @@ export default function ToggleRevenueCard({
 
       <div className="relative z-10 flex flex-col flex-1">
         {/* Header with distinct area */}
-        <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border-primary)]">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">{currentRevenue.label}</h3>
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
+          <h3 className="text-lg font-semibold">{currentRevenue.label}</h3>
           <div className="flex items-center gap-2">
             <Button
               onClick={() => navigateRevenue('prev')}
@@ -241,9 +224,9 @@ export default function ToggleRevenueCard({
         
         <div className="flex-1 flex items-center justify-center">
           {currentRevenue.value === null ? (
-            <div className="h-12 w-32 bg-[var(--bg-tertiary)] rounded animate-pulse"></div>
+            <div className="h-12 w-32 bg-muted rounded animate-pulse"></div>
           ) : (
-            <p className="text-4xl font-bold text-[var(--text-primary)]">
+            <p className="text-4xl font-bold">
               ${currentRevenue.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           )}

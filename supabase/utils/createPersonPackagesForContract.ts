@@ -4,10 +4,10 @@ import { fetchPackageServicesByPackageId } from '../fetches/fetchpackageservices
 import { upsertPersonPackage } from '../upserts/upsertpersonpackage'
 
 /**
- * When assigning a contract (package to person), create person_packages rows with
- * status 'pending': one row per package service for the first obligation cycle.
- * Timeframe is expressed via next_payment_date (no start_date/end_date on person_packages).
- * Later cycles / payment linkage happen when payments are applied.
+ * @deprecated Entitlements are created on payment via applyPaymentToPersonPackages.
+ * Assigning a contract is only the billing agreement — do not call this from assign/convert flows.
+ *
+ * Historical: created pending person_packages rows (one per package service) on contract assign.
  */
 export type CreatePersonPackagesForContractParams = {
   personId: string

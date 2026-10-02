@@ -11,15 +11,15 @@ type QuickMetricCardProps = {
 
 export default function QuickMetricCard({ title, value, icon, loading }: QuickMetricCardProps) {
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4">
+    <div className="bg-card border border-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-[var(--text-secondary)]">{title}</h3>
-        {icon && <div className="text-[var(--text-secondary)]">{icon}</div>}
+        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+        {icon && <div className="text-muted-foreground">{icon}</div>}
       </div>
       {loading || value === null ? (
-        <div className="h-8 bg-[var(--bg-tertiary)] rounded animate-pulse"></div>
+        <div className="h-8 bg-muted rounded animate-pulse"></div>
       ) : (
-        <p className="text-2xl font-bold text-[var(--text-primary)]">{value.toLocaleString()}</p>
+        <p className="text-2xl font-bold text-primary">{value.toLocaleString()}</p>
       )}
     </div>
   )

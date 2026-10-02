@@ -6,12 +6,16 @@ export interface PackageService {
   id: string // uuid
   package_id: string // uuid
   service_id: string // uuid
-  units_per_obligation_cycle: number
-  obligation_cycle_length_weeks: number
   unit_cost: number | null
   is_included: boolean
   created_at: string
   updated_at: string
+  /** Live schema */
+  units_per_bill_cycle?: number
+  package_bill_cycle_weeks?: number
+  /** Older helper names; not present on live package_services */
+  units_per_obligation_cycle?: number
+  obligation_cycle_length_weeks?: number
 }
 
 export interface PackageServiceWithDetails extends PackageService {

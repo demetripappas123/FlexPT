@@ -4,7 +4,12 @@ import React, { useState, useMemo } from 'react'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { extraFromDisplayedTotal } from '@/supabase/utils/macros'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+function localDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 type LocalNutritionEntry = {
   entry_date: string
@@ -12,6 +17,12 @@ type LocalNutritionEntry = {
   protein_grams: number | null
   carbs_grams: number | null
   fats_grams: number | null
+  from_meals?: {
+    calories: number
+    protein_grams: number
+    carbs_grams: number
+    fats_grams: number
+  }
 }
 
 type EditNutritionProps = {
@@ -34,12 +45,13 @@ export default function EditNutrition({
   const [entriesMap, setEntriesMap] = useState<Map<string, LocalNutritionEntry>>(() => {
     const map = new Map<string, LocalNutritionEntry>()
     initialEntries.forEach(e => {
-      map.set(e.entry_date, {
-        entry_date: e.entry_date,
+      map.set(e.entry_date.slice(0, 10), {
+        entry_date: e.entry_date.slice(0, 10),
         calories: e.calories,
         protein_grams: e.protein_grams,
         carbs_grams: e.carbs_grams,
         fats_grams: e.fats_grams,
+        from_meals: e.from_meals,
       })
     })
     return map
@@ -62,19 +74,20 @@ export default function EditNutrition({
 
   // Get entry for a specific date, or create empty one
   const getEntryForDate = (date: Date): LocalNutritionEntry => {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = localDateKey(date)
     return entriesMap.get(dateStr) || {
       entry_date: dateStr,
       calories: null,
       protein_grams: null,
       carbs_grams: null,
       fats_grams: null,
+      from_meals: initialEntries.find((e) => e.entry_date.slice(0, 10) === dateStr)?.from_meals,
     }
   }
 
   // Update entry for a specific date
   const updateEntryForDate = (date: Date, field: keyof LocalNutritionEntry, value: any) => {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = localDateKey(date)
     setEntriesMap(prev => {
       const newMap = new Map(prev)
       const existing = newMap.get(dateStr)
@@ -88,6 +101,7 @@ export default function EditNutrition({
           protein_grams: null,
           carbs_grams: null,
           fats_grams: null,
+          from_meals: initialEntries.find((e) => e.entry_date.slice(0, 10) === dateStr)?.from_meals,
           [field]: value,
         })
       }
@@ -115,14 +129,21 @@ export default function EditNutrition({
           // Only include entries that have at least one macro value filled
           return e.calories !== null || e.protein_grams !== null || e.carbs_grams !== null || e.fats_grams !== null
         })
-        .map(e => ({
-          client_id: clientId,
-          entry_date: e.entry_date,
-          calories: e.calories,
-          protein_grams: e.protein_grams,
-          carbs_grams: e.carbs_grams,
-          fats_grams: e.fats_grams,
-        }))
+        .map(e => {
+          const fromMeals = e.from_meals || { calories: 0, protein_grams: 0, carbs_grams: 0, fats_grams: 0 }
+          return {
+            client_id: clientId,
+            entry_date: e.entry_date,
+            extra_calories: extraFromDisplayedTotal(e.calories, fromMeals.calories),
+            extra_protein_grams: extraFromDisplayedTotal(e.protein_grams, fromMeals.protein_grams),
+            extra_carbs_grams: extraFromDisplayedTotal(e.carbs_grams, fromMeals.carbs_grams),
+            extra_fats_grams: extraFromDisplayedTotal(e.fats_grams, fromMeals.fats_grams),
+            calories: extraFromDisplayedTotal(e.calories, fromMeals.calories),
+            protein_grams: extraFromDisplayedTotal(e.protein_grams, fromMeals.protein_grams),
+            carbs_grams: extraFromDisplayedTotal(e.carbs_grams, fromMeals.carbs_grams),
+            fats_grams: extraFromDisplayedTotal(e.fats_grams, fromMeals.fats_grams),
+          }
+        })
 
       await onSave(allEntries)
     } catch (err) {
@@ -188,8 +209,11 @@ export default function EditNutrition({
           <tbody>
             {daysInMonth.map((date) => {
               const entry = getEntryForDate(date)
-              const dateStr = date.toISOString().split('T')[0]
-              const isToday = dateStr === new Date().toISOString().split('T')[0]
+              const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+              const today = new Date()
+              const isToday =
+                dateStr ===
+                `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
               
               return (
                 <tr

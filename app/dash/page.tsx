@@ -1,31 +1,39 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/supabase/supabaseClient'
 import { useAuth } from '@/context/authcontext'
 import { fetchDashboardMetricsProgressive } from '@/supabase/fetches/fetchdashboardmetrics'
 import { fetchNewClientsThisMonth, fetchNewLeadsThisMonth, fetchSuccessfulPaymentsThisMonth, fetchLeadSources, fetchProspectsForScatter } from '@/supabase/fetches/fetchdashboardquickmetrics'
-import { fetchProspects, Prospect } from '@/supabase/fetches/fetchpeople'
-import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
-import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
 import { fetchPeople } from '@/supabase/fetches/fetchpeople'
+import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
 import Link from 'next/link'
 import CloseRateChart from '@/modules/dashboard/closeratechart'
 import ShowRateChart from '@/modules/dashboard/showratechart'
-import AverageBookingsChart from '@/modules/dashboard/averagebookingschart'
 import AverageBookingsPerDayChart from '@/modules/dashboard/averagebookingsperdaychart'
 import HourlyAverageChart from '@/modules/dashboard/hourlyaveragechart'
-import ChartSkeleton from '@/modules/dashboard/chartskeleton'
 import QuickMetricCard from '@/modules/dashboard/quickmetriccard'
 import ToggleRevenueCard from '@/modules/dashboard/togglerevenuecard'
 import LeadSourcesChart from '@/modules/dashboard/leadsourceschart'
-import { Users, UserPlus, DollarSign, Calendar } from 'lucide-react'
-import { DateRange, getDateRangeBounds } from '@/supabase/utils/daterange'
-import { subMinutes, addDays } from 'date-fns'
+import { Users, UserPlus, DollarSign, Calendar, ListTodo } from 'lucide-react'
+import { getDateRangeBounds } from '@/supabase/utils/daterange'
+import { addDays, format, subMinutes } from 'date-fns'
+import { fetchOpenTasks, Task } from '@/supabase/fetches/fetchtasks'
+import TaskFeed from '@/modules/dashboard/taskfeed'
+
+function sessionTimeUntil(startTime: Date | null): { relative: string; clock: string | null } {
+  if (!startTime) return { relative: 'Time TBD', clock: null }
+  const diffMs = startTime.getTime() - Date.now()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  let relative = `In ${diffDays} day${diffDays !== 1 ? 's' : ''}`
+  if (diffMins < 0) relative = 'Started'
+  else if (diffMins < 60) relative = `In ${diffMins} min${diffMins !== 1 ? 's' : ''}`
+  else if (diffHours < 24) relative = `In ${diffHours} hr${diffHours !== 1 ? 's' : ''}`
+  return { relative, clock: format(startTime, 'EEE h:mm a') }
+}
 
 export default function DashboardPage() {
-  const router = useRouter()
   const { user } = useAuth()
   const [closeRate, setCloseRate] = useState<number | null>(null)
   const [showRate, setShowRate] = useState<number | null>(null)
@@ -41,10 +49,10 @@ export default function DashboardPage() {
   const [leadSources, setLeadSources] = useState<Array<{ source: string; count: number }>>([])
   const [prospectsForScatter, setProspectsForScatter] = useState<Array<{ created_at: string; lead_source: string | null }>>([])
   const [loadingQuickMetrics, setLoadingQuickMetrics] = useState(false)
-  const [newLeadsList, setNewLeadsList] = useState<Prospect[]>([])
-  const [loadingLeads, setLoadingLeads] = useState(false)
   const [upcomingSessions, setUpcomingSessions] = useState<Array<Session & { personName?: string }>>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [openTasks, setOpenTasks] = useState<Task[]>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
 
 
   useEffect(() => {
@@ -128,29 +136,6 @@ export default function DashboardPage() {
   }, [user])
 
   useEffect(() => {
-    const loadNewLeads = async () => {
-      if (!user) return
-      setLoadingLeads(true)
-      try {
-        const prospects = await fetchProspects(user.id)
-        // Get new leads from this month
-        const now = new Date()
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        const newLeads = prospects.filter(prospect => {
-          const createdDate = new Date(prospect.created_at)
-          return createdDate >= startOfMonth && createdDate <= now
-        })
-        // Sort by most recent first and limit to 5
-        setNewLeadsList(newLeads.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ).slice(0, 5))
-      } catch (err) {
-        console.error('Error loading new leads:', err)
-      } finally {
-        setLoadingLeads(false)
-      }
-    }
-
     const loadUpcomingSessions = async () => {
       if (!user) return
       setLoadingSessions(true)
@@ -302,29 +287,45 @@ export default function DashboardPage() {
       }
     }
 
-    loadNewLeads()
     loadUpcomingSessions()
+
+    const loadTasks = async () => {
+      if (!user) return
+      setLoadingTasks(true)
+      try {
+        const data = await fetchOpenTasks(user.id, 20)
+        setOpenTasks(data)
+      } catch (err) {
+        console.error('Error loading tasks:', err)
+        setOpenTasks([])
+      } finally {
+        setLoadingTasks(false)
+      }
+    }
+    loadTasks()
   }, [user])
 
   if (error) {
     return (
-      <div className="w-full h-full bg-[var(--bg-primary)] text-[var(--text-primary)] p-6">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
         <div className="flex items-center justify-center h-64">
-          <div className="text-red-400">{error}</div>
+          <div className="text-destructive">{error}</div>
         </div>
       </div>
     )
   }
 
+  const todayLabel = format(new Date(), 'EEEE, MMM d')
+
   return (
-    <div className="w-full h-full bg-[var(--bg-primary)] text-[var(--text-primary)] p-6">
-      <div className="mb-6">
+    <div className="w-full space-y-6">
+      <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">{todayLabel}</p>
       </div>
 
-      {/* Quick Metrics Row - Top */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
         <QuickMetricCard
           title="New Clients"
           value={newClients}
@@ -343,151 +344,151 @@ export default function DashboardPage() {
           icon={<DollarSign className="h-4 w-4" />}
           loading={loadingQuickMetrics}
         />
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[var(--text-secondary)]">Today's Bookings</h3>
-            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
+            <h3 className="text-sm font-medium text-muted-foreground">Today&apos;s Bookings</h3>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </div>
           {averageBookings !== null ? (
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{averageBookings.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-primary">{averageBookings.toLocaleString()}</p>
           ) : (
-            <div className="h-8 bg-[var(--bg-tertiary)] rounded animate-pulse"></div>
+            <div className="h-8 bg-muted rounded animate-pulse" />
           )}
         </div>
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4">
+        <div className="bg-card border border-border rounded-lg p-4 col-span-2 md:col-span-1">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[var(--text-secondary)]">Avg Bookings/Day</h3>
-            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
+            <h3 className="text-sm font-medium text-muted-foreground">Avg Bookings/Day</h3>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </div>
           {user?.id ? (
             <AverageBookingsPerDayChart compact trainerId={user.id} />
           ) : (
-            <div className="h-8 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+            <div className="h-8 bg-muted rounded animate-pulse" />
           )}
         </div>
       </div>
 
-      {/* Revenue and Lead Sources Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Toggleable Revenue Card - Always uses monthly */}
-        <ToggleRevenueCard
-          mtdRevenue={mtdRevenue}
-          projectedRevenue={projectedRevenue}
-          trainedRevenue={trainedRevenue}
-          dateRange="monthly"
-          trainerId={user?.id}
-        />
-
-        {/* Lead Sources Chart */}
-        <LeadSourcesChart sources={leadSources} prospects={prospectsForScatter} loading={loadingQuickMetrics} dateRange="monthly" />
-      </div>
-
-      {/* Bottom Row: All Other Metrics - Close Rate, Show Rate, Hourly Average, Tasks, and Upcoming Sessions */}
-      <div className="flex items-start justify-start gap-4">
-        {/* Compressed Dials Section - Takes up more space */}
-        <div className="flex items-center gap-6" style={{ width: 'calc(50% - 0.5rem)' }}>
-          {closeRate !== null ? (
-            <CloseRateChart closeRate={closeRate} />
-          ) : (
-            <div className="w-[100px] h-[130px] flex items-center justify-center">
-              <div className="h-24 w-24 bg-[var(--bg-tertiary)] rounded-full animate-pulse"></div>
-            </div>
-          )}
-          {showRate !== null ? (
-            <ShowRateChart showRate={showRate} />
-          ) : (
-            <div className="w-[100px] h-[130px] flex items-center justify-center">
-              <div className="h-24 w-24 bg-[var(--bg-tertiary)] rounded-full animate-pulse"></div>
-            </div>
-          )}
-          {hourlyAverage !== null ? (
-            <HourlyAverageChart hourlyAverage={hourlyAverage} />
-          ) : (
-            <div className="w-[100px] h-[130px] flex items-center justify-center">
-              <div className="h-16 w-16 bg-[var(--bg-tertiary)] rounded animate-pulse"></div>
-            </div>
-          )}
-        </div>
-        
-        {/* Tasks Section - Compact */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 flex-1">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Tasks</h2>
-            <Link
-              href="/tasks"
-              className="text-xs text-orange-500 hover:text-orange-600 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              See All →
-            </Link>
-          </div>
-          <div className="text-[var(--text-secondary)] text-xs">No tasks available</div>
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+        <div className="min-w-0 lg:flex-[1.35]">
+          <ToggleRevenueCard
+            mtdRevenue={mtdRevenue}
+            projectedRevenue={projectedRevenue}
+            trainedRevenue={trainedRevenue}
+            dateRange="monthly"
+            trainerId={user?.id}
+          />
         </div>
 
-        {/* Upcoming Sessions Section - Compact */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 flex-1">
-          <div className="mb-3">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Upcoming Sessions</h2>
-          </div>
-          {loadingSessions ? (
-            <div className="text-[var(--text-secondary)] text-xs">Loading...</div>
-          ) : upcomingSessions.length === 0 ? (
-            <div className="text-[var(--text-secondary)] text-xs">No upcoming sessions</div>
-          ) : (
-            <>
-              <div className="space-y-2">
+        <div className="flex min-w-0 flex-1 gap-4">
+          <section className="flex-1 min-w-0 bg-card border border-border rounded-lg p-3 flex flex-col min-h-[300px]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
+                <h2 className="text-sm font-semibold truncate">Tasks</h2>
+                {!loadingTasks && (
+                  <span className="text-[11px] text-primary bg-primary/15 rounded-full px-2 py-0.5">
+                    {openTasks.length}
+                  </span>
+                )}
+              </div>
+              <Link
+                href="/tasks"
+                className="text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+              >
+                See all
+              </Link>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <TaskFeed tasks={openTasks} loading={loadingTasks} compact />
+            </div>
+          </section>
+
+          <section className="flex-1 min-w-0 bg-card border border-border rounded-lg p-3 flex flex-col min-h-[300px]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                <h2 className="text-sm font-semibold truncate">Sessions</h2>
+                {!loadingSessions && (
+                  <span className="text-[11px] text-primary bg-primary/15 rounded-full px-2 py-0.5">
+                    {upcomingSessions.length}
+                  </span>
+                )}
+              </div>
+              <Link
+                href="/calendar"
+                className="text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+              >
+                Calendar
+              </Link>
+            </div>
+            {loadingSessions ? (
+              <div className="text-muted-foreground text-sm py-8 text-center">Loading...</div>
+            ) : upcomingSessions.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground text-center px-2">
+                No sessions in the next few days
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {upcomingSessions.map((session) => {
                   const startTime = session.start_time ? new Date(session.start_time) : null
-                  const now = new Date()
-                  let timeUntil = ''
-                  
-                  if (startTime) {
-                    const diffMs = startTime.getTime() - now.getTime()
-                    const diffMins = Math.floor(diffMs / 60000)
-                    const diffHours = Math.floor(diffMs / 3600000)
-                    const diffDays = Math.floor(diffMs / 86400000)
-                    
-                    if (diffMins < 60) {
-                      timeUntil = `In ${diffMins} min${diffMins !== 1 ? 's' : ''}`
-                    } else if (diffHours < 24) {
-                      timeUntil = `In ${diffHours} hr${diffHours !== 1 ? 's' : ''}`
-                    } else {
-                      timeUntil = `In ${diffDays} day${diffDays !== 1 ? 's' : ''}`
-                    }
-                  } else {
-                    timeUntil = 'TBD'
-                  }
-                  
+                  const when = sessionTimeUntil(startTime)
                   return (
                     <Link
                       key={session.id}
                       href={`/events/${session.id}`}
-                      className="flex items-center gap-3 p-2 rounded hover:bg-[var(--bg-hover)] transition-colors cursor-pointer group"
+                      className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 transition-colors group"
                     >
-                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-semibold text-blue-400">
+                      <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-semibold text-primary">
                           {session.personName?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-blue-400 transition-colors">
-                          {session.personName || 'Unknown'} - {session.type}
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                          {session.personName || 'Unknown'}
                         </p>
-                        <p className="text-xs text-[var(--text-secondary)]">{timeUntil}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {when.clock ?? when.relative}
+                        </p>
                       </div>
                     </Link>
                   )
                 })}
               </div>
-              <div className="mt-4 pt-3 border-t border-[var(--border-primary)]">
-                <Link
-                  href="/calendar"
-                  className="text-xs text-orange-500 hover:text-orange-600 transition-colors cursor-pointer flex items-center justify-center gap-1"
-                >
-                  See all sessions →
-                </Link>
-              </div>
-            </>
-          )}
+            )}
+          </section>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <LeadSourcesChart
+          sources={leadSources}
+          prospects={prospectsForScatter}
+          loading={loadingQuickMetrics}
+          dateRange="monthly"
+        />
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
+            {closeRate !== null ? (
+              <CloseRateChart closeRate={closeRate} />
+            ) : (
+              <div className="h-24 w-24 bg-muted rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
+            {showRate !== null ? (
+              <ShowRateChart showRate={showRate} />
+            ) : (
+              <div className="h-24 w-24 bg-muted rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
+            {hourlyAverage !== null ? (
+              <HourlyAverageChart hourlyAverage={hourlyAverage} />
+            ) : (
+              <div className="h-16 w-24 bg-muted rounded animate-pulse" />
+            )}
+          </div>
         </div>
       </div>
     </div>

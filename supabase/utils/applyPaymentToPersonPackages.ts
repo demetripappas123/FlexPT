@@ -1,6 +1,9 @@
 import { fetchContractById } from '../fetches/fetchcontracts'
+import { fetchPackageServicesByPackageId } from '../fetches/fetchpackageservices'
 import { fetchPersonPackagesByPersonId } from '../fetches/fetchpersonpackages'
 import { upsertPersonPackage } from '../upserts/upsertpersonpackage'
+import { resolveContractCycleCost } from './packageCycleCost'
+import { syncOpenTasksForPersonPackage } from '../fetches/fetchtasks'
 
 const AMOUNT_TOLERANCE = 0.01
 
@@ -44,65 +47,134 @@ export function validatePaymentAmountForContract(
 /** @deprecated Use validatePaymentAmountForContract */
 export const validatePaymentAmountForPackage = validatePaymentAmountForContract
 
+function toDateOnly(s: string): string {
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return s
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function addWeeks(dateStr: string, weeks: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + weeks * 7)
+  const yyyy = dt.getFullYear()
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function cycleCountForPayment(
+  amount: number,
+  pif: boolean | null,
+  costPerBillCycle: number | null
+): number {
+  if (pif) return 1
+  const cycleCost = Number(costPerBillCycle)
+  return Math.max(1, Math.round(amount / cycleCost))
+}
+
 /**
- * Applies a payment to person_packages for a contract: validates amount, then marks
- * pending rows as paid and links payment_id / payment_date.
- * Returns the first person_package id that was marked.
+ * Creates paid person_packages entitlement rows from the contract's package_services.
+ * Recurring amounts that are N × cycle cost insert N sequential cycles.
+ * Idempotent when paymentId already has person_packages rows.
+ * Returns the first created (or existing) person_package id.
  */
 export async function applyPaymentToPersonPackages(
   personId: string,
   contractId: string,
   amount: number,
-  paymentId?: string | null
+  paymentId?: string | null,
+  paymentDate?: string | null
 ): Promise<string> {
   const contract = await fetchContractById(contractId)
   if (!contract) {
     throw new Error(`Contract ${contractId} not found`)
   }
+  if (!contract.package_id) {
+    throw new Error('This contract has no package template')
+  }
+
+  const cycleCost = contract.pif
+    ? contract.cost_per_bill_cycle
+    : await resolveContractCycleCost(contract)
 
   const validation = validatePaymentAmountForContract(
     amount,
     contract.pif,
     contract.pif_cost,
-    contract.cost_per_bill_cycle
+    cycleCost
   )
   if (!validation.valid) {
     throw new Error(validation.error)
   }
 
-  const allForPerson = await fetchPersonPackagesByPersonId(personId)
-  const pending = allForPerson.filter(
-    (pp) => pp.contract_id === contractId && pp.status === 'pending'
-  )
-  if (pending.length === 0) {
-    throw new Error('No pending entitlements found for this contract')
+  if (paymentId) {
+    const existing = (await fetchPersonPackagesByPersonId(personId)).filter(
+      (pp) => pp.payment_id === paymentId
+    )
+    if (existing.length > 0) {
+      await Promise.all(existing.map((pp) => syncOpenTasksForPersonPackage(pp.id)))
+      return existing[0].id
+    }
   }
 
-  const paymentDate = new Date().toISOString().split('T')[0]
-  const firstId = pending[0].id
-
-  for (const pp of pending) {
-    const cycleWeeks = Number(pp.obligation_cycle_length_weeks) || 1
-    const nextPayment = new Date(paymentDate)
-    nextPayment.setDate(nextPayment.getDate() + cycleWeeks * 7)
-
-    await upsertPersonPackage({
-      id: pp.id,
-      person_id: pp.person_id,
-      package_id: pp.package_id,
-      service_id: pp.service_id,
-      unit_cost: pp.unit_cost ?? null,
-      is_included: pp.is_included ?? true,
-      units_per_obligation_cycle: pp.units_per_obligation_cycle,
-      obligation_cycle_length_weeks: pp.obligation_cycle_length_weeks,
-      trainer_id: pp.trainer_id ?? null,
-      contract_id: pp.contract_id,
-      payment_id: paymentId ?? pp.payment_id,
-      payment_date: paymentDate,
-      next_payment_date: nextPayment.toISOString().split('T')[0],
-      status: 'paid',
-    })
+  const packageServices = await fetchPackageServicesByPackageId(contract.package_id)
+  if (!packageServices.length) {
+    throw new Error("This contract's package has no services. Add services to the package first.")
   }
 
+  const isPif = Boolean(contract.pif)
+  const cycles = cycleCountForPayment(amount, contract.pif, cycleCost)
+  const billWeeks = Math.max(1, Number(contract.bill_cycle_length_weeks) || 1)
+  let cycleStart = toDateOnly(paymentDate || new Date().toISOString())
+  let firstId: string | null = null
+  const createdIds: string[] = []
+
+  for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex++) {
+    for (const ps of packageServices) {
+      const unitsGranted = Number(
+        (ps as { units_per_bill_cycle?: number }).units_per_bill_cycle ??
+          ps.units_per_obligation_cycle
+      )
+      const cycleWeeks =
+        Number(
+          (ps as { package_bill_cycle_weeks?: number }).package_bill_cycle_weeks ??
+            ps.obligation_cycle_length_weeks
+        ) || billWeeks
+      const created = await upsertPersonPackage({
+        person_id: personId,
+        package_id: contract.package_id,
+        service_id: ps.service_id,
+        unit_cost: ps.unit_cost ?? null,
+        is_included: ps.is_included ?? true,
+        units_per_obligation_cycle: Number.isFinite(unitsGranted) ? unitsGranted : null,
+        obligation_cycle_length_weeks: cycleWeeks,
+        trainer_id: contract.trainer_id,
+        contract_id: contractId,
+        payment_id: paymentId ?? null,
+        payment_date: cycleStart,
+        next_payment_date: isPif ? null : addWeeks(cycleStart, cycleWeeks),
+        status: 'paid',
+      })
+      const createdId =
+        created && typeof created === 'object' && 'id' in created
+          ? String((created as { id: unknown }).id)
+          : null
+      if (!firstId && createdId) firstId = createdId
+      if (createdId) createdIds.push(createdId)
+    }
+    if (cycleIndex < cycles - 1) {
+      cycleStart = addWeeks(cycleStart, billWeeks)
+    }
+  }
+
+  if (!firstId) {
+    throw new Error('Failed to create entitlements for this payment')
+  }
+  await Promise.all(createdIds.map((id) => syncOpenTasksForPersonPackage(id)))
   return firstId
 }

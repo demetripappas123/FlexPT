@@ -8,7 +8,6 @@ import { Person } from '@/supabase/fetches/fetchpeople'
 import { fetchPackages, Package } from '@/supabase/fetches/fetchpackages'
 import { upsertPackage } from '@/supabase/upserts/upsertpackage'
 import { upsertContract } from '@/supabase/upserts/upsertcontract'
-import { createPersonPackagesForContract } from '@/supabase/utils/createPersonPackagesForContract'
 import { useAuth } from '@/context/authcontext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -111,13 +110,13 @@ export default function ConversionPage() {
         return
       }
 
-      // Create the new package
+      // Create the new package (live packages columns only)
       packageToUse = await upsertPackage({
         name: packageName.trim(),
-        unit_cost: parseFloat(unitCost),
-        units_per_cycle: parseInt(unitsPerCycle),
-        billing_cycle_weeks: parseInt(billingCycleWeeks),
-        session_duration_minutes: sessionDurationMinutes ? parseInt(sessionDurationMinutes) : null,
+        bill_cycle_length_weeks: parseInt(billingCycleWeeks, 10),
+        until_cancelled: autoRenew,
+        pif: false,
+        trainer_id: user?.id ?? null,
       })
     } else {
       // Use existing package
@@ -144,11 +143,12 @@ export default function ConversionPage() {
     
     try {
       // Create the contract (copies package fields into contract row)
-      const contract = await upsertContract({
+      await upsertContract({
         person_id: person.id,
         trainer_id: user?.id ?? null,
         start_date: firstBillingDate,
         package: packageToUse,
+        cost_per_bill_cycle: unitCost ? parseFloat(unitCost) : null,
       })
 
       // Convert prospect to client and link the package
@@ -160,16 +160,6 @@ export default function ConversionPage() {
         program_id: person.program_id || undefined,
         package_id: packageToUse.id,
         converted_at: new Date().toISOString(),
-      })
-
-      // Create person_packages entitlements for this contract (first obligation cycle)
-      await createPersonPackagesForContract({
-        personId: person.id,
-        packageId: packageToUse.id,
-        trainerId: user?.id ?? null,
-        contractId: contract.id,
-        contractStartDate: firstBillingDate,
-        untilCancelled,
       })
 
       // Redirect to the person's page
@@ -311,7 +301,7 @@ export default function ConversionPage() {
                 onClick={() => setPackageSelectionMode('existing')}
                 className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
                   packageSelectionMode === 'existing'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
@@ -321,7 +311,7 @@ export default function ConversionPage() {
                 onClick={() => setPackageSelectionMode('new')}
                 className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
                   packageSelectionMode === 'new'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >

@@ -1,6 +1,27 @@
 import { supabase } from '@/supabase/supabaseClient'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 
+function extraFields(entry: Omit<NutritionEntry, 'id' | 'created_at' | 'updated_at'>) {
+  const extraCalories = entry.extra_calories ?? entry.calories ?? null
+  const extraProtein = entry.extra_protein_grams ?? entry.protein_grams ?? null
+  const extraCarbs = entry.extra_carbs_grams ?? entry.carbs_grams ?? null
+  const extraFats = entry.extra_fats_grams ?? entry.fats_grams ?? null
+  return {
+    extra_calories: extraCalories,
+    extra_protein_grams: extraProtein,
+    extra_carbs_grams: extraCarbs,
+    extra_fats_grams: extraFats,
+    calories: extraCalories,
+    protein_grams: extraProtein,
+    carbs_grams: extraCarbs,
+    fats_grams: extraFats,
+  }
+}
+
+function dateKey(value: string | null | undefined): string {
+  return (value || '').slice(0, 10)
+}
+
 /**
  * Inserts nutrition entries for a client (for new entries).
  */
@@ -12,11 +33,8 @@ export async function upsertNutritionEntries(
   try {
     const formattedEntries = entries.map(entry => ({
       client_id: entry.client_id,
-      entry_date: entry.entry_date,
-      calories: entry.calories ?? null,
-      protein_grams: entry.protein_grams ?? null,
-      carbs_grams: entry.carbs_grams ?? null,
-      fats_grams: entry.fats_grams ?? null,
+      entry_date: dateKey(entry.entry_date),
+      ...extraFields(entry),
     }))
 
     const { data, error } = await supabase
@@ -61,42 +79,35 @@ export async function updateNutritionEntries(
     // Create a map of existing entries by entry_date for quick lookup
     const existingMap = new Map<string, any>()
     existingEntries?.forEach(entry => {
-      existingMap.set(entry.entry_date, entry)
+      existingMap.set(dateKey(entry.entry_date), entry)
     })
 
-    // Track which entry_dates should exist after update
-    const newEntryDates = new Set(entries.map(e => e.entry_date))
+    const newEntryDates = new Set(entries.map(e => dateKey(e.entry_date)))
+    const monthsTouched = new Set([...newEntryDates].map((d) => d.slice(0, 7)))
 
-    // Separate entries into updates and inserts
     const toUpdate: any[] = []
-    const toInsert: Omit<NutritionEntry, 'id' | 'created_at' | 'updated_at'>[] = []
+    const toInsert: any[] = []
 
     entries.forEach(entry => {
       const formatted = {
         client_id: entry.client_id,
-        entry_date: entry.entry_date,
-        calories: entry.calories ?? null,
-        protein_grams: entry.protein_grams ?? null,
-        carbs_grams: entry.carbs_grams ?? null,
-        fats_grams: entry.fats_grams ?? null,
+        entry_date: dateKey(entry.entry_date),
+        ...extraFields(entry),
       }
 
-      // Check if this entry already exists (by entry_date)
-      const existing = existingMap.get(entry.entry_date)
+      const existing = existingMap.get(formatted.entry_date)
       if (existing) {
-        // Update existing entry
         toUpdate.push(formatted)
       } else {
-        // Insert new entry
         toInsert.push(formatted)
       }
     })
 
-    // Delete entries that exist in DB but not in the new list
     const toDelete: string[] = []
     existingEntries?.forEach(entry => {
-      if (!newEntryDates.has(entry.entry_date)) {
-        toDelete.push(entry.entry_date)
+      const d = dateKey(entry.entry_date)
+      if (monthsTouched.has(d.slice(0, 7)) && !newEntryDates.has(d)) {
+        toDelete.push(d)
       }
     })
 
@@ -109,6 +120,10 @@ export async function updateNutritionEntries(
         supabase
           .from('nutrition_entries')
           .update({
+            extra_calories: entry.extra_calories,
+            extra_protein_grams: entry.extra_protein_grams,
+            extra_carbs_grams: entry.extra_carbs_grams,
+            extra_fats_grams: entry.extra_fats_grams,
             calories: entry.calories,
             protein_grams: entry.protein_grams,
             carbs_grams: entry.carbs_grams,

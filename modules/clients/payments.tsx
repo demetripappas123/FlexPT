@@ -5,6 +5,7 @@ import { Payment } from '@/supabase/fetches/fetchpayments'
 import { Contract } from '@/supabase/fetches/fetchcontracts'
 import { upsertPayment } from '@/supabase/upserts/upsertpayment'
 import { validatePaymentAmountForPackage, applyPaymentToPersonPackages } from '@/supabase/utils/applyPaymentToPersonPackages'
+import { resolveContractCycleCost } from '@/supabase/utils/packageCycleCost'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, X, Pencil, Trash } from 'lucide-react'
@@ -25,9 +26,43 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
   const [amountError, setAmountError] = useState<string | null>(null)
+  const [resolvedCycleCosts, setResolvedCycleCosts] = useState<Record<string, number>>({})
 
   const contractsWithPackage = contracts.filter((c) => c.package_id != null)
   const contractMap = new Map(contracts.map((c) => [c.id, c]))
+
+  useEffect(() => {
+    let cancelled = false
+    const missing = contractsWithPackage.filter(
+      (c) => !c.pif && !(Number(c.cost_per_bill_cycle) > 0) && c.package_id
+    )
+    if (missing.length === 0) return
+    Promise.all(
+      missing.map(async (c) => {
+        const cost = await resolveContractCycleCost(c)
+        return [c.id, cost] as const
+      })
+    ).then((entries) => {
+      if (cancelled) return
+      setResolvedCycleCosts((prev) => {
+        const next = { ...prev }
+        for (const [id, cost] of entries) {
+          if (cost != null && cost > 0) next[id] = cost
+        }
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [contracts])
+
+  const cycleCostFor = (c: Contract): number | null => {
+    if (c.cost_per_bill_cycle != null && Number(c.cost_per_bill_cycle) > 0) {
+      return Number(c.cost_per_bill_cycle)
+    }
+    return resolvedCycleCosts[c.id] ?? null
+  }
 
   useEffect(() => {
     if (showAddForm && !editingPaymentId && contractsWithPackage.length === 1 && !selectedContractId) {
@@ -93,11 +128,14 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
     }
 
     if (!editingPaymentId) {
+      const cycleCost = contract.pif
+        ? contract.cost_per_bill_cycle
+        : cycleCostFor(contract) ?? (await resolveContractCycleCost(contract))
       const validation = validatePaymentAmountForPackage(
         amountNum,
         contract.pif,
         contract.pif_cost,
-        contract.cost_per_bill_cycle
+        cycleCost
       )
       if (!validation.valid) {
         setAmountError(validation.error ?? 'Invalid amount for this contract')
@@ -118,8 +156,8 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
           trainer_id: existing.trainer_id,
           amount: amountNum,
           processed_at: processedAt,
-          status: existing.status ?? 'completed',
-          payment_type: existing.payment_type || (contract.pif ? 'pif' : 'recurring'),
+          status: existing.status ?? 'succeeded',
+          payment_type: existing.payment_type || (contract.pif ? 'PIF' : 'recurring'),
         })
       } else {
         const created = await upsertPayment({
@@ -127,8 +165,8 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
           trainer_id: contract.trainer_id,
           amount: amountNum,
           currency: 'USD',
-          status: 'completed',
-          payment_type: contract.pif ? 'pif' : 'recurring',
+          status: 'succeeded',
+          payment_type: contract.pif ? 'PIF' : 'recurring',
           processed_at: processedAt,
           generated_obligations: true,
         })
@@ -137,7 +175,8 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
           personId,
           contract.id,
           amountNum,
-          created.id != null ? String(created.id) : null
+          created.id != null ? String(created.id) : null,
+          paymentDate
         )
       }
 
@@ -200,8 +239,8 @@ export default function Payments({ payments, contracts, personId, onPaymentAdded
                       <option key={c.id} value={c.id}>
                         {c.name}
                         {c.pif && c.pif_cost != null ? ` (PIF $${Number(c.pif_cost).toFixed(2)})` : ''}
-                        {!c.pif && c.cost_per_bill_cycle != null
-                          ? ` ($${Number(c.cost_per_bill_cycle).toFixed(2)}/cycle)`
+                        {!c.pif && cycleCostFor(c) != null
+                          ? ` ($${Number(cycleCostFor(c)).toFixed(2)}/cycle)`
                           : ''}
                       </option>
                     ))}

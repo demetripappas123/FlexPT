@@ -5,24 +5,38 @@ export interface PackageServiceFormData {
   id?: string
   package_id: string
   service_id: string
-  units_per_obligation_cycle: number
-  obligation_cycle_length_weeks: number
+  /** Live package_services column */
+  units_per_bill_cycle?: number
+  /** Live package_services column */
+  package_bill_cycle_weeks?: number
+  /** @deprecated mapped to units_per_bill_cycle */
+  units_per_obligation_cycle?: number
+  /** @deprecated mapped to package_bill_cycle_weeks */
+  obligation_cycle_length_weeks?: number
   unit_cost?: number | null
   is_included: boolean
 }
 
 /**
- * Create or update a package_service relationship
+ * Create or update a package_service relationship.
+ * Writes live columns: units_per_bill_cycle, package_bill_cycle_weeks.
  */
 export async function upsertPackageService(
   packageServiceData: PackageServiceFormData
 ): Promise<PackageService> {
-  const data: any = {
+  const units =
+    packageServiceData.units_per_bill_cycle ??
+    packageServiceData.units_per_obligation_cycle
+  const weeks =
+    packageServiceData.package_bill_cycle_weeks ??
+    packageServiceData.obligation_cycle_length_weeks
+
+  const data: Record<string, unknown> = {
     package_id: packageServiceData.package_id,
     service_id: packageServiceData.service_id,
-    units_per_obligation_cycle: packageServiceData.units_per_obligation_cycle,
-    obligation_cycle_length_weeks: packageServiceData.obligation_cycle_length_weeks,
-    unit_cost: packageServiceData.unit_cost ?? null,
+    units_per_bill_cycle: units ?? null,
+    package_bill_cycle_weeks: weeks ?? null,
+    unit_cost: packageServiceData.unit_cost ?? 0,
     is_included: packageServiceData.is_included,
   }
 

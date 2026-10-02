@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Package } from '@/supabase/fetches/fetchpackages'
 import { upsertPackage, PackageFormData } from '@/supabase/upserts/upsertpackage'
 import { fetchServices, Service } from '@/supabase/fetches/fetchservices'
+import { fetchPackageServicesByPackageId } from '@/supabase/fetches/fetchpackageservices'
 import { upsertPackageService, PackageServiceFormData } from '@/supabase/upserts/upsertpackageservice'
 import { deletePackageServicesByPackageId } from '@/supabase/upserts/upsertpackageservice'
 import { fetchNutritionPrograms, NutritionProgram } from '@/supabase/fetches/fetchnutritionprograms'
@@ -37,6 +38,33 @@ type PackageListFormData = {
 
 type BillingType = 'PIF' | 'recurring' | 'recurring_with_down_payment'
 
+type ServiceKind = 'session' | 'workout' | 'nutrition_macro' | 'nutrition_full' | 'checkin' | 'habit' | 'other'
+
+function classifyService(service: { name?: string | null; service_type?: string | null } | undefined): ServiceKind {
+  const name = (service?.name || '').toLowerCase()
+  const serviceType = (service?.service_type || '').toLowerCase()
+  if ((name.includes('session') || serviceType.includes('session')) &&
+      (name.includes('30') || name.includes('60'))) {
+    return 'session'
+  }
+  if (name.includes('habit') || name.includes('daily') || serviceType.includes('habit')) return 'habit'
+  if (name.includes('progress') && (name.includes('check') || name.includes('form'))) return 'checkin'
+  if (name.includes('macro')) return 'nutrition_macro'
+  if ((name.includes('programmed') && (name.includes('eating') || name.includes('day'))) ||
+      (name.includes('meal') && name.includes('programming'))) {
+    return 'nutrition_full'
+  }
+  if ((name.includes('workout') && name.includes('programming')) || serviceType.includes('workout')) {
+    return 'workout'
+  }
+  if (name.includes('session') || serviceType.includes('session')) return 'session'
+  return 'other'
+}
+
+function frequencyFromWeeks(weeks: number | null | undefined): 'weekly' | 'monthly' {
+  return weeks != null && weeks >= 3 ? 'monthly' : 'weekly'
+}
+
 type ServiceSelection = {
   service_id: string
   service_name: string
@@ -59,7 +87,6 @@ type PackageConstraints = {
 export default function PackageList({ packages, onPackagesUpdate }: PackageListProps) {
   const { user } = useAuth()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [deletingPackage, setDeletingPackage] = useState(false)
@@ -460,21 +487,155 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
     }
   }
 
-  const handleEditClick = (pkg: Package) => {
+  const handleEditClick = async (pkg: Package) => {
     setEditingPackage(pkg)
-    setFormData({
-      name: pkg.name ?? '',
-      description: pkg.description,
-      bill_cycle_length_weeks: pkg.bill_cycle_length_weeks,
-      package_length_weeks: 0,
-      default_cost_per_cycle: null,
-      is_active: true,
-      notes: null,
-      until_cancelled: pkg.until_cancelled ?? false,
-      pif: pkg.pif ?? false,
-      pif_cost: pkg.pif_cost,
-    })
-    setEditDialogOpen(true)
+    try {
+      const [servicesData, rows] = await Promise.all([
+        fetchServices(),
+        fetchPackageServicesByPackageId(pkg.id),
+      ])
+      setServices(servicesData)
+
+      const isPif = pkg.pif === true
+      setBillingType(isPif ? 'PIF' : 'recurring')
+      setIsIndefinite(pkg.until_cancelled === true)
+      setFormData({
+        name: pkg.name ?? '',
+        description: pkg.description,
+        bill_cycle_length_weeks: pkg.bill_cycle_length_weeks,
+        package_length_weeks: pkg.package_length_weeks ?? 0,
+        default_cost_per_cycle: pkg.cost_per_bill_cycle,
+        is_active: true,
+        notes: null,
+        until_cancelled: pkg.until_cancelled ?? false,
+        pif: isPif,
+        pif_cost: pkg.pif_cost,
+      })
+      setCustomCostPerCycle(
+        isPif
+          ? (pkg.pif_cost != null ? Number(pkg.pif_cost) : null)
+          : (pkg.cost_per_bill_cycle != null ? Number(pkg.cost_per_bill_cycle) : null)
+      )
+
+      let offeringSessions = false
+      let sessionServiceId = ''
+      let sessionFrequency: 'weekly' | 'monthly' = 'weekly'
+      let sessionUnits: number | null = null
+      let sessionUnitCost: number | null = null
+      let sessionsIncludedInCost = false
+
+      let offeringWorkoutProgramming = false
+      let workoutFrequency: 'weekly' | 'monthly' = 'weekly'
+      let workoutUnits: number | null = null
+      let workoutProgrammingCost: number | null = null
+      let workoutProgrammingIncluded = false
+
+      let offeringNutritionProgramming = false
+      let nutritionType: 'full_meal' | 'macro_checkin' = 'full_meal'
+      let nutritionFrequency: 'weekly' | 'monthly' = 'weekly'
+      let nutritionUnits: number | null = null
+      let nutritionProgrammingCost: number | null = null
+      let nutritionProgrammingIncluded = false
+
+      let offeringCheckInForms = false
+      let checkInFormsFrequency: 'weekly' | 'monthly' = 'weekly'
+      let checkInFormsUnits: number | null = null
+      let checkInFormsCost: number | null = null
+      let checkInFormsIncluded = true
+
+      let offeringDailyHabitForms = false
+      let dailyHabitFormsFrequency: 'weekly' | 'monthly' = 'weekly'
+      let dailyHabitFormsUnits: number | null = null
+      let dailyHabitFormsCost: number | null = null
+      let dailyHabitFormsIncluded = true
+
+      for (const row of rows) {
+        const service = row.service || servicesData.find((s) => s.id === row.service_id)
+        const kind = classifyService(service)
+        const units = Number(row.units_per_bill_cycle ?? row.units_per_obligation_cycle) || 0
+        const weeks = Number(row.package_bill_cycle_weeks ?? row.obligation_cycle_length_weeks) || 1
+        const frequency = frequencyFromWeeks(weeks)
+        const included = row.is_included !== false
+        const unitCost = row.unit_cost != null ? Number(row.unit_cost) : null
+
+        if (kind === 'session') {
+          offeringSessions = true
+          sessionServiceId = row.service_id
+          sessionFrequency = frequency
+          sessionUnits = units
+          sessionsIncludedInCost = included
+          sessionUnitCost = included ? null : unitCost
+          if (isPif) {
+            setPifSessionsPerPeriod(units)
+            setPifSessionPeriod(frequency)
+          }
+        } else if (kind === 'workout') {
+          offeringWorkoutProgramming = true
+          workoutFrequency = frequency
+          workoutUnits = units
+          workoutProgrammingIncluded = included
+          workoutProgrammingCost = included ? null : unitCost
+        } else if (kind === 'nutrition_macro' || kind === 'nutrition_full') {
+          offeringNutritionProgramming = true
+          nutritionType = kind === 'nutrition_macro' ? 'macro_checkin' : 'full_meal'
+          nutritionFrequency = frequency
+          nutritionUnits = units
+          nutritionProgrammingIncluded = included
+          nutritionProgrammingCost = included ? null : unitCost
+        } else if (kind === 'checkin') {
+          offeringCheckInForms = true
+          checkInFormsFrequency = frequency
+          checkInFormsUnits = units
+          checkInFormsIncluded = included
+          checkInFormsCost = included ? null : unitCost
+        } else if (kind === 'habit') {
+          offeringDailyHabitForms = true
+          dailyHabitFormsFrequency = frequency
+          dailyHabitFormsUnits = units
+          dailyHabitFormsIncluded = included
+          dailyHabitFormsCost = included ? null : unitCost
+        }
+      }
+
+      setOfferingSessions(offeringSessions)
+      setSessionServiceId(sessionServiceId)
+      setSessionFrequency(sessionFrequency)
+      setSessionUnits(sessionUnits)
+      setSessionUnitCost(sessionUnitCost)
+      setSessionsIncludedInCost(sessionsIncludedInCost)
+
+      setOfferingWorkoutProgramming(offeringWorkoutProgramming)
+      setWorkoutFrequency(workoutFrequency)
+      setWorkoutUnits(workoutUnits)
+      setWorkoutProgrammingCost(workoutProgrammingCost)
+      setWorkoutProgrammingIncluded(workoutProgrammingIncluded)
+
+      setOfferingNutritionProgramming(offeringNutritionProgramming)
+      setNutritionType(nutritionType)
+      setNutritionFrequency(nutritionFrequency)
+      setNutritionUnits(nutritionUnits)
+      setNutritionProgrammingCost(nutritionProgrammingCost)
+      setNutritionProgrammingIncluded(nutritionProgrammingIncluded)
+
+      setOfferingCheckInForms(offeringCheckInForms)
+      setCheckInFormsFrequency(checkInFormsFrequency)
+      setCheckInFormsUnits(checkInFormsUnits)
+      setCheckInFormsIncluded(checkInFormsIncluded)
+      setCheckInFormsCost(checkInFormsCost)
+
+      setOfferingDailyHabitForms(offeringDailyHabitForms)
+      setDailyHabitFormsFrequency(dailyHabitFormsFrequency)
+      setDailyHabitFormsUnits(dailyHabitFormsUnits)
+      setDailyHabitFormsCost(dailyHabitFormsCost)
+      setDailyHabitFormsIncluded(dailyHabitFormsIncluded)
+
+      setCurrentStep(6)
+      setAddDialogOpen(true)
+    } catch (error) {
+      console.error('Error loading package for edit:', error)
+      alert('Error loading package details. Please try again.')
+      setEditingPackage(null)
+    }
   }
 
   const handleDeleteClick = (pkg: Package) => {
@@ -491,14 +652,11 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       alert('Please enter a valid cycle length (in weeks)')
       return
     }
-    if (!isIndefinite && formData.package_length_weeks <= 0) {
+    if (!isIndefinite && !editingPackage && formData.package_length_weeks <= 0) {
       alert('Please enter a valid package length (in weeks)')
       return
     }
-    // For recurring services, use custom cost if set, otherwise use calculated cost
-    const finalCost = (billingType === 'recurring' || billingType === 'recurring_with_down_payment') 
-      ? (customCostPerCycle ?? calculateCosts())
-      : calculateCosts()
+    const finalCost = customCostPerCycle ?? calculateCosts()
     
     if (finalCost <= 0) {
       alert('Please enter a valid cost')
@@ -513,9 +671,12 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         name: formData.name,
         description: formData.description ?? null,
         bill_cycle_length_weeks: billingType === 'PIF' ? null : formData.bill_cycle_length_weeks,
+        package_length_weeks: isIndefinite ? null : formData.package_length_weeks,
         until_cancelled: billingType === 'PIF' ? false : isIndefinite,
         pif: billingType === 'PIF',
         pif_cost: billingType === 'PIF' ? finalCost : null,
+        cost_per_bill_cycle: billingType === 'PIF' ? null : finalCost,
+        trainer_id: user?.id ?? null,
         ...(editingPackage?.id ? { id: editingPackage.id } : {}),
       }
       console.log('Creating package with data:', packageData)
@@ -741,7 +902,6 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       }
 
       setAddDialogOpen(false)
-      setEditDialogOpen(false)
       setFormData({
         name: '',
         description: null,
@@ -756,7 +916,13 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
       onPackagesUpdate()
     } catch (error) {
       console.error('Error saving package:', error)
-      alert('Error saving package. Please try again.')
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : error instanceof Error
+            ? error.message
+            : 'Error saving package. Please try again.'
+      alert(message)
     } finally {
       setSaving(false)
     }
@@ -812,7 +978,8 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                   <th className="text-left font-medium text-foreground px-4 py-3">Cycle length</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">PIF</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Until cancelled</th>
-                  <th className="text-left font-medium text-foreground px-4 py-3">Renewal</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Length</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Cycle cost</th>
                   <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
                 </tr>
               </thead>
@@ -834,7 +1001,20 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                     </td>
                     <td className="px-4 py-3 text-foreground">{pkg.until_cancelled ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3 text-foreground">
-                      {pkg.renewal_date ? new Date(pkg.renewal_date).toLocaleDateString() : '—'}
+                      {pkg.until_cancelled
+                        ? '—'
+                        : pkg.package_length_weeks != null
+                          ? `${pkg.package_length_weeks} wk`
+                          : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-foreground">
+                      {pkg.pif
+                        ? pkg.pif_cost != null
+                          ? `$${Number(pkg.pif_cost).toFixed(2)} PIF`
+                          : '—'
+                        : pkg.cost_per_bill_cycle != null
+                          ? `$${Number(pkg.cost_per_bill_cycle).toFixed(2)}`
+                          : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
@@ -910,12 +1090,17 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
             trainer_notes: null,
           })
           setDownPayment(0)
+          setEditingPackage(null)
         }
       }}>
         <DialogContent className="bg-card text-card-foreground border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Add New Package</DialogTitle>
-            <DialogDescription>Create a new training package</DialogDescription>
+            <DialogTitle>{editingPackage ? 'Edit Package' : 'Add New Package'}</DialogTitle>
+            <DialogDescription>
+              {editingPackage
+                ? 'Update deliverables, then confirm the cost per cycle'
+                : 'Create a new training package'}
+            </DialogDescription>
           </DialogHeader>
           
           {/* Progress Bar */}
@@ -2374,103 +2559,10 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                   className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Package'}
+                  {saving ? 'Saving...' : editingPackage ? 'Update Package' : 'Save Package'}
                 </Button>
               )}
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Package Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="bg-card text-card-foreground border-border">
-          <DialogHeader>
-            <DialogTitle>Edit Package</DialogTitle>
-            <DialogDescription>Update package details</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Package Name</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Monthly Training Package"
-                className="bg-input text-foreground border-border"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Description (optional)</label>
-              <Textarea
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value || null })}
-                placeholder="Package description..."
-                className="bg-input text-foreground border-border"
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Cycle Length (weeks)</label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.bill_cycle_length_weeks || ''}
-                onChange={(e) => setFormData({ ...formData, bill_cycle_length_weeks: parseInt(e.target.value) || 0 })}
-                placeholder="Number of weeks per cycle"
-                className="bg-input text-foreground border-border"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Package Length (weeks)</label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.package_length_weeks || ''}
-                onChange={(e) => setFormData({ ...formData, package_length_weeks: parseInt(e.target.value) || 0 })}
-                placeholder="Total package duration in weeks"
-                className="bg-input text-foreground border-border"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Default Cost per Cycle ($)</label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.default_cost_per_cycle || ''}
-                onChange={(e) => setFormData({ ...formData, default_cost_per_cycle: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-                className="bg-input text-foreground border-border"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_active_edit"
-                checked={formData.is_active ?? true}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="w-4 h-4 rounded border-border"
-              />
-              <label htmlFor="is_active_edit" className="text-sm font-medium text-foreground cursor-pointer">
-                Active
-              </label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => setEditDialogOpen(false)}
-              variant="outline"
-              className="bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Update Package'}
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,41 +2,42 @@ import { supabase } from '@/supabase/supabaseClient'
 import { AssignedMeal, AssignedMealStatus } from '@/supabase/fetches/fetchassignedmeals'
 
 export type AssignedMealInput = {
-  id?: string // uuid
-  person_id: string // uuid, references people.id
-  meal_id?: string | null // uuid, references day_meals.id or meals_templates.id (nullable for on-the-spot meals)
-  assigned_date: string // date
-  status?: AssignedMealStatus // defaults to 'pending'
-  name?: string | null // Name for on-the-spot meals (NOT NULL in schema)
-  trainer_id?: string | null // uuid, for on-the-spot meals
+  id?: string
+  person_id: string
+  meal_id?: string | null
+  assigned_date?: string
+  status?: AssignedMealStatus
+  name?: string | null
+  trainer_id?: string | null
 }
 
 export async function upsertAssignedMeal(assignedMeal: AssignedMealInput): Promise<AssignedMeal | null> {
   try {
-    // name is NOT NULL in schema - must always be provided
-    if (!assignedMeal.name && !assignedMeal.meal_id) {
-      console.error('Error: name is required for meals_occurances (NOT NULL constraint)')
+    const name = assignedMeal.name?.trim()
+    if (!assignedMeal.id && !name) {
+      console.error('Error: name is required for meals_occurances')
       return null
     }
 
-    const mealData: Record<string, any> = {
+    const mealData: Record<string, unknown> = {
       person_id: assignedMeal.person_id,
-      assigned_date: assignedMeal.assigned_date,
       status: assignedMeal.status || 'pending',
-      name: assignedMeal.name || 'Meal', // NOT NULL - provide fallback if not set
       updated_at: new Date().toISOString(),
     }
-    
-    // Add optional fields
+
+    if (assignedMeal.assigned_date) {
+      mealData.assigned_date = assignedMeal.assigned_date
+    }
+
+    if (name) mealData.name = name
     if (assignedMeal.meal_id !== undefined) {
-      mealData.meal_id = assignedMeal.meal_id
+      mealData.meal_id = assignedMeal.meal_id || null
     }
     if (assignedMeal.trainer_id !== undefined) {
       mealData.trainer_id = assignedMeal.trainer_id
     }
 
     if (assignedMeal.id) {
-      // Update existing assigned meal
       const { data, error } = await supabase
         .from('meals_occurances')
         .update(mealData)
@@ -46,17 +47,16 @@ export async function upsertAssignedMeal(assignedMeal: AssignedMealInput): Promi
 
       if (error) throw error
       return data as AssignedMeal
-    } else {
-      // Insert new assigned meal
-      const { data, error } = await supabase
-        .from('meals_occurances')
-        .insert([mealData])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as AssignedMeal
     }
+
+    const { data, error } = await supabase
+      .from('meals_occurances')
+      .insert([{ ...mealData, name: name || 'Meal' }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as AssignedMeal
   } catch (err) {
     console.error('Error upserting assigned meal:', err)
     return null
@@ -77,4 +77,3 @@ export async function deleteAssignedMeal(assignedMealId: string): Promise<boolea
     return false
   }
 }
-
