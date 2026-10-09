@@ -73,7 +73,22 @@ function formatActivity(iso: string | null): string {
   return `No activity ${Math.max(days, 1)}d`
 }
 
-function formatCheckInColumn(row: ClientRosterRow): { title: string; detail: string; overdue: boolean } {
+function formatCheckInColumn(row: ClientRosterRow): {
+  title: string
+  detail: string
+  overdue: boolean
+  completedWeek: boolean
+} {
+  if (row.checkInCompletedThisWeek) {
+    return {
+      title: 'Completed',
+      detail: row.lastCheckInAt
+        ? `This week · ${format(new Date(row.lastCheckInAt), 'MMM d')}`
+        : 'This week',
+      overdue: false,
+      completedWeek: true,
+    }
+  }
   if (row.checkInOverdue) {
     return {
       title: 'Overdue',
@@ -81,6 +96,7 @@ function formatCheckInColumn(row: ClientRosterRow): { title: string; detail: str
         ? `Last ${format(new Date(row.lastCheckInAt), 'MMM d')}`
         : 'No form completed',
       overdue: true,
+      completedWeek: false,
     }
   }
   if (row.lastCheckInAt) {
@@ -91,16 +107,10 @@ function formatCheckInColumn(row: ClientRosterRow): { title: string; detail: str
         ? `${row.checkInsCompleted} form${row.checkInsCompleted === 1 ? '' : 's'}`
         : format(date, 'MMM d, yyyy'),
       overdue: false,
+      completedWeek: false,
     }
   }
-  if (row.checkInsCompleted > 0) {
-    return {
-      title: 'Completed',
-      detail: `${row.checkInsCompleted} form${row.checkInsCompleted === 1 ? '' : 's'}`,
-      overdue: false,
-    }
-  }
-  return { title: '—', detail: 'No check-in yet', overdue: false }
+  return { title: '—', detail: 'No check-in yet', overdue: false, completedWeek: false }
 }
 
 function lastPaymentLabel(row: ClientRosterRow): string {
@@ -319,7 +329,15 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
                       <p className="text-foreground">{formatActivity(row.lastActivityAt)}</p>
                     </td>
                     <td className="px-4 py-3 align-top whitespace-nowrap">
-                      <p className={checkIn.overdue ? 'text-amber-400' : 'text-foreground'}>
+                      <p
+                        className={
+                          checkIn.completedWeek
+                            ? 'text-emerald-400 font-medium'
+                            : checkIn.overdue
+                              ? 'text-amber-400'
+                              : 'text-foreground'
+                        }
+                      >
                         {checkIn.title}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{checkIn.detail}</p>

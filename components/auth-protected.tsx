@@ -4,6 +4,7 @@ import { useAuth } from '@/context/authcontext'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import Sidebar from '@/modules/sidebar'
+import { isClientRole, signOut } from '@/supabase/auth/auth-helpers'
 
 export default function AuthProtected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -16,6 +17,11 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
 
     if (!loading && !user) {
       router.push('/landing')
+      return
+    }
+
+    if (!loading && isClientRole(user)) {
+      signOut().then(() => router.push('/login'))
     }
   }, [user, loading, router, isPublicPage])
 
@@ -32,7 +38,7 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
   }
 
   // If not logged in and not on a public page, don't render (redirect will happen)
-  if (!user) {
+  if (!user || isClientRole(user)) {
     return null
   }
 

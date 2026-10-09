@@ -13,6 +13,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog'
 import { upsertClient, ClientFormData } from '@/supabase/upserts/upsertperson'
+import { upsertPersonLogin } from '@/supabase/auth/person-login'
 import { useAuth } from '@/context/authcontext'
 
 interface AddClientDialogProps {
@@ -26,25 +27,62 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
   const [notes, setNotes] = useState('')
+  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const resetForm = () => {
+    setName('')
+    setNumber('')
+    setNotes('')
+    setEmail('')
+    setUsername('')
+    setPassword('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    const clientData: ClientFormData = { name, number, notes }
+    const trimmedEmail = email.trim()
+    const trimmedUsername = username.trim()
+    if (password && !trimmedEmail) {
+      alert('Email is required to create a client login.')
+      setLoading(false)
+      return
+    }
+    if (trimmedEmail && password && password.length < 6) {
+      alert('Password must be at least 6 characters.')
+      setLoading(false)
+      return
+    }
+
+    const clientData: ClientFormData = {
+      name,
+      number,
+      notes,
+      email: trimmedEmail || null,
+      username: trimmedUsername || null,
+    }
 
     try {
-      await upsertClient(clientData, user?.id || null)
-      setName('')
-      setNumber('')
-      setNotes('')
-      setOpen(false) // Close dialog on success
-      router.refresh() // Refresh the page to show the new client
-      onClientAdded?.() // Trigger parent refresh callback
+      const saved = await upsertClient(clientData, user?.id || null)
+      const personId = saved?.[0]?.id as string | undefined
+      if (personId && trimmedEmail && password) {
+        await upsertPersonLogin(personId, {
+          email: trimmedEmail,
+          password,
+          username: trimmedUsername || null,
+        })
+      }
+      resetForm()
+      setOpen(false)
+      router.refresh()
+      onClientAdded?.()
     } catch (err) {
       console.error(err)
-      alert('Error saving client.')
+      alert(err instanceof Error ? err.message : 'Error saving client.')
     } finally {
       setLoading(false)
     }
@@ -54,10 +92,7 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen)
     if (!isOpen) {
-      // Reset form when closing
-      setName('')
-      setNumber('')
-      setNotes('')
+      resetForm()
     }
   }
 
@@ -96,6 +131,31 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-24 resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            Optional login. Password is saved in Auth, not on the person row. Leave password blank to add contact email only.
+          </p>
+          <input
+            type="email"
+            placeholder="Email (optional)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+          <input
+            type="text"
+            placeholder="Username (optional)"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+          <input
+            type="password"
+            placeholder="Password (optional, creates login)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={6}
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
           <div className="flex justify-end gap-2">
             <DialogClose asChild>

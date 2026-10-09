@@ -11,6 +11,9 @@ export interface Person {
   notes?: string | null
   lead_source?: string | null
   trainer_id?: string | null
+  email?: string | null
+  username?: string | null
+  auth_user_id?: string | null
 }
 
 // Re-export types for backward compatibility

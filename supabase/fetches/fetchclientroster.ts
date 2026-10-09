@@ -6,6 +6,7 @@ import { fetchPersonPackages } from './fetchpersonpackages'
 import { attachRemainingToPersonPackages } from './fetchpersonpackageswithremaining'
 import { fetchPayments, Payment, isPaymentCountedForRevenue } from './fetchpayments'
 import { fetchServices } from './fetchservices'
+import { assignmentCompletedThisWeek } from '../utils/checkinWeek'
 
 export type ClientRosterStatus = 'active' | 'paused' | 'trial' | 'ending' | 'inactive'
 export type ClientRosterFlag =
@@ -27,6 +28,7 @@ export type ClientRosterRow = {
   lastActivityAt: string | null
   lastCheckInAt: string | null
   checkInsCompleted: number
+  checkInCompletedThisWeek: boolean
   checkInOverdue: boolean
   nextBillAt: string | null
   nextBillAmount: number | null
@@ -50,6 +52,12 @@ type TaskRow = {
   kind: string
   status: string
   due_date: string | null
+  completed_at: string | null
+}
+type CheckinAssignmentRow = {
+  person_id: string
+  status: string
+  assigned_date: string | null
   completed_at: string | null
 }
 
@@ -165,13 +173,24 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
       .eq('trainer_id', trainerId),
   ])
 
+  const clientIds = clients.map((client) => client.id)
+  const checkinsRes =
+    clientIds.length === 0
+      ? { data: [] as CheckinAssignmentRow[], error: null }
+      : await supabase
+          .from('checkin_form_assignments')
+          .select('person_id, status, assigned_date, completed_at')
+          .in('person_id', clientIds)
+
   if (trainersRes.error) console.error('Error fetching trainers:', trainersRes.error)
   if (workoutsRes.error) console.error('Error fetching workouts:', workoutsRes.error)
   if (tasksRes.error) console.error('Error fetching tasks:', tasksRes.error)
+  if (checkinsRes.error) console.error('Error fetching check-in assignments:', checkinsRes.error)
 
   const trainers = (trainersRes.data ?? []) as TrainerRow[]
   const workouts = (workoutsRes.data ?? []) as WorkoutRow[]
   const tasks = (tasksRes.data ?? []) as TaskRow[]
+  const checkins = (checkinsRes.data ?? []) as CheckinAssignmentRow[]
   const trainerNameById = new Map(trainers.map((t) => [t.id, t.name || null]))
 
   const packagesWithRemaining = await attachRemainingToPersonPackages(personPackages, services)
@@ -223,6 +242,13 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
     tasksByPerson.set(task.person_id, list)
   }
 
+  const checkinsByPerson = new Map<string, CheckinAssignmentRow[]>()
+  for (const assignment of checkins) {
+    const list = checkinsByPerson.get(assignment.person_id) ?? []
+    list.push(assignment)
+    checkinsByPerson.set(assignment.person_id, list)
+  }
+
   const mapped = clients.map((client) => {
     const personContracts = contractsByPerson.get(client.id) ?? []
     const contract = pickPrimaryContract(personContracts)
@@ -263,19 +289,20 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
       [lastWorkoutAt, lastCompletedSession].filter(Boolean).sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0] ??
       null
 
+    const personCheckins = checkinsByPerson.get(client.id) ?? []
     const lastCheckInAt =
-      personTasks
-        .filter((t) => t.kind === 'checkin' && t.status === 'done' && t.completed_at)
-        .map((t) => t.completed_at as string)
+      personCheckins
+        .filter((row) => row.status === 'completed' && row.completed_at)
+        .map((row) => row.completed_at as string)
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null
 
-    const checkInsCompleted = personTasks.filter(
-      (t) => t.kind === 'checkin' && t.status === 'done'
-    ).length
+    const checkInsCompleted = personCheckins.filter((row) => row.status === 'completed').length
+    const checkInCompletedThisWeek = personCheckins.some((row) => assignmentCompletedThisWeek(row, now))
 
-    const checkInOverdue = personTasks.some((t) => {
-      if (t.kind !== 'checkin' || t.status !== 'open' || !t.due_date) return false
-      return new Date(t.due_date) < startOfToday
+    const checkInOverdue = personCheckins.some((row) => {
+      if (row.status === 'completed' || !row.assigned_date) return false
+      const due = new Date(`${row.assigned_date}T00:00:00`)
+      return !Number.isNaN(due.getTime()) && due < startOfToday
     })
 
     const nextBillCandidates = personPackagesForClient
@@ -313,6 +340,7 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
       lastCheckInAt,
       checkInsCompleted,
       checkInOverdue,
+      checkInCompletedThisWeek,
       nextBillAt,
       nextBillAmount,
       lastPaymentStatus,

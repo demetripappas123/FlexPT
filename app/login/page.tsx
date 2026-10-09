@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from '@/supabase/auth/auth-helpers'
+import { signIn, signOut, isClientRole } from '@/supabase/auth/auth-helpers'
 import { useAuth } from '@/context/authcontext'
+import { supabase } from '@/supabase/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -23,7 +24,7 @@ export default function LoginPage() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !isClientRole(user)) {
       router.push('/dash')
     }
   }, [user, loading, router])
@@ -49,6 +50,26 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
+        if (isClientRole(data.user)) {
+          await signOut()
+          setError('This is a client login. Use the client app.')
+          setIsLoading(false)
+          return
+        }
+
+        const { data: trainer, error: trainerError } = await supabase
+          .from('trainers')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle()
+
+        if (trainerError || !trainer) {
+          await signOut()
+          setError('This account is not a trainer.')
+          setIsLoading(false)
+          return
+        }
+
         router.push('/dash')
       }
     } catch (err) {
@@ -69,7 +90,7 @@ export default function LoginPage() {
     )
   }
 
-  if (user) {
+  if (user && !isClientRole(user)) {
     return null // Will redirect via useEffect
   }
 

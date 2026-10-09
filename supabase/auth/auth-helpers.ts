@@ -1,4 +1,9 @@
+import { User } from '@supabase/supabase-js'
 import { supabase } from '../supabaseClient'
+
+export function isClientRole(user: User | null | undefined): boolean {
+  return user?.app_metadata?.role === 'client'
+}
 
 /**
  * Sign in with email and password

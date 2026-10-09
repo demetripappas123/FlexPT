@@ -18,7 +18,6 @@ import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchPersonById } from '@/supabase/fetches/fetchpeople'
-import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { UserCheck } from 'lucide-react'
 import { formatRangeDisplay, parseRangeInput } from '@/supabase/utils/rangeparse'
 
@@ -36,7 +35,6 @@ export default function EventPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
-  const [converting, setConverting] = useState(false)
   const [person, setPerson] = useState<any>(null)
 
   useEffect(() => {
@@ -173,69 +171,11 @@ export default function EventPage() {
         {session.status === 'completed' && !session.converted && session.person_id && person && person.converted_at === null && (
           <div className="mb-8">
             <Button
-              onClick={async () => {
-                if (!session.person_id) return
-                
-                setConverting(true)
-                try {
-                  // Fetch person data
-                  const person = await fetchPersonById(session.person_id)
-                  if (!person) {
-                    alert('Person not found')
-                    return
-                  }
-
-                  // Convert prospect to client
-                  await upsertClient({
-                    id: person.id,
-                    name: person.name,
-                    number: person.number,
-                    notes: person.notes,
-                    program_id: person.program_id,
-                    converted_at: new Date().toISOString(),
-                  })
-
-                  // Update session to mark as converted
-                  await upsertSession({
-                    id: session.id,
-                    type: session.type,
-                    person_id: session.person_id,
-                    trainer_id: session.trainer_id,
-                    start_time: session.start_time,
-                    started_at: session.started_at,
-                    end_time: session.end_time,
-                    workout_id: session.workout_id,
-                    converted: true,
-                    status: session.status,
-                  })
-
-                  // Reload session data
-                  const sessionWithExercises = await fetchSessionWithExercises(session.id)
-                  if (sessionWithExercises) {
-                    setSession(sessionWithExercises)
-                  }
-
-                  // Reload person data to update converted_at status
-                  if (session.person_id) {
-                    const updatedPerson = await fetchPersonById(session.person_id)
-                    if (updatedPerson) {
-                      setPerson(updatedPerson)
-                    }
-                  }
-
-                  alert('Prospect converted to client successfully!')
-                } catch (error) {
-                  console.error('Error converting prospect to client:', error)
-                  alert('Error converting prospect to client. Please try again.')
-                } finally {
-                  setConverting(false)
-                }
-              }}
-              disabled={converting}
-              className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer disabled:bg-blue-400 disabled:cursor-not-allowed"
+              onClick={() => router.push(`/conversion/${session.person_id}`)}
+              className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer"
             >
               <UserCheck className="h-4 w-4 mr-2" />
-              {converting ? 'Converting...' : 'Convert to Client'}
+              Convert to Client
             </Button>
           </div>
         )}

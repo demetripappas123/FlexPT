@@ -11,6 +11,7 @@ import { upsertContract } from '@/supabase/upserts/upsertcontract'
 import { useAuth } from '@/context/authcontext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { upsertPersonLogin } from '@/supabase/auth/person-login'
 
 export default function ConversionPage() {
   const params = useParams()
@@ -38,6 +39,9 @@ export default function ConversionPage() {
   const [unitsPerCycle, setUnitsPerCycle] = useState<string>('')
   const [billingCycleWeeks, setBillingCycleWeeks] = useState<string>('')
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<string>('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
 
   useEffect(() => {
     const loadPerson = async () => {
@@ -59,15 +63,15 @@ export default function ConversionPage() {
           return
         }
 
-        // Check if person is already a client
         if (personData.converted_at !== null) {
-          setError('This person is already a client')
-          setLoading(false)
+          router.replace(`/people/${id}`)
           return
         }
 
         setPerson(personData)
         setPackages(packagesData)
+        setLoginEmail(personData.email ?? '')
+        setLoginUsername(personData.username ?? '')
       } catch (err) {
         console.error('Error loading person:', err)
         setError('Failed to load person data')
@@ -138,6 +142,17 @@ export default function ConversionPage() {
       return
     }
 
+    const trimmedEmail = loginEmail.trim()
+    const trimmedUsername = loginUsername.trim()
+    if (loginPassword && !trimmedEmail) {
+      setError('Email is required to create a client login')
+      return
+    }
+    if (trimmedEmail && loginPassword && loginPassword.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setConverting(true)
     setError(null)
     
@@ -159,10 +174,23 @@ export default function ConversionPage() {
         notes: person.notes || undefined,
         program_id: person.program_id || undefined,
         package_id: packageToUse.id,
+        email: trimmedEmail || person.email || null,
+        username: trimmedUsername || person.username || null,
         converted_at: new Date().toISOString(),
       })
 
-      // Redirect to the person's page
+      if (trimmedEmail && loginPassword) {
+        try {
+          await upsertPersonLogin(person.id, {
+            email: trimmedEmail,
+            password: loginPassword,
+            username: trimmedUsername || null,
+          })
+        } catch (loginErr) {
+          console.error('Converted, but login was not created:', loginErr)
+        }
+      }
+
       router.push(`/people/${person.id}`)
     } catch (err) {
       console.error('Error converting prospect to client:', err)
@@ -181,29 +209,13 @@ export default function ConversionPage() {
     )
   }
 
-  if (error) {
-    return (
-      <main className="p-8 text-foreground bg-background min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => router.push('/people')}
-            className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md cursor-pointer"
-          >
-            Go Back
-          </button>
-        </div>
-      </main>
-    )
-  }
-
   if (!person) {
     return (
       <main className="p-8 text-foreground bg-background min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Person not found</p>
           <button
-            onClick={() => router.push('/people')}
+            onClick={() => router.push('/prospects')}
             className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md cursor-pointer"
           >
             Go Back
@@ -419,6 +431,49 @@ export default function ConversionPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Client login (optional)</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Creates a Supabase Auth user for this person. Password is not stored on the people row.
+            You can also add this later on their client page.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Email</label>
+              <Input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="client@email.com"
+                className="bg-background text-foreground border-border placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">
+                Username (optional)
+              </label>
+              <Input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                placeholder="handle"
+                className="bg-background text-foreground border-border placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Password</label>
+              <Input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Leave blank to skip creating a login"
+                minLength={6}
+                className="bg-background text-foreground border-border placeholder-muted-foreground"
+              />
+            </div>
           </div>
         </div>
 

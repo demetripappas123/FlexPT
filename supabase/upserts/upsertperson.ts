@@ -11,6 +11,8 @@ export interface PersonFormData {
   package_id?: string | null
   created_at?: string
   converted_at?: string | null
+  email?: string | null
+  username?: string | null
 }
 
 // Re-export types for backward compatibility
@@ -51,6 +53,16 @@ export async function upsertPerson(person: Partial<PersonFormData>, options?: {
   // Include lead_source if provided (must match ENUM values exactly: 'instagram reel', 'instagram dms', etc.)
   if (person.lead_source !== undefined && person.lead_source !== null && person.lead_source.trim() !== '') {
     fullPerson.lead_source = person.lead_source.trim()
+  }
+
+  // Contact/login fields. Password is never stored on people — Auth owns it.
+  if (person.email !== undefined) {
+    const email = person.email?.trim().toLowerCase() || null
+    fullPerson.email = email
+  }
+  if (person.username !== undefined) {
+    const username = person.username?.trim() || null
+    fullPerson.username = username
   }
 
   // Handle converted_at based on options

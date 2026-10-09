@@ -61,15 +61,15 @@ function addWeeksToDate(dateStr: string, weeks: number): string {
 }
 
 function statusClass(status: string | null | undefined): string {
-  switch (status) {
-    case 'active':
-      return 'text-green-500'
-    case 'cancelled':
-      return 'text-red-500'
-    case 'frozen':
-      return 'text-yellow-500'
-    default:
-      return 'text-muted-foreground'
+    switch (status) {
+      case 'active':
+        return 'text-green-500'
+      case 'cancelled':
+        return 'text-red-500'
+      case 'frozen':
+        return 'text-yellow-500'
+      default:
+        return 'text-muted-foreground'
   }
 }
 
@@ -580,16 +580,16 @@ export default function Contracts({
       {contracts.length === 0 && !showForm ? (
         <p className="text-muted-foreground text-sm">No contracts yet. Add one to assign a package to this client.</p>
       ) : (
-        <div className="space-y-4">
-          {sortedContracts.map((contract) => {
+      <div className="space-y-4">
+        {sortedContracts.map((contract) => {
             const pkg = contract.package_id ? packageMap.get(contract.package_id) : undefined
             const billingLabel = contract.pif
               ? `PIF ${formatMoney(contract.pif_cost)}`
               : `${formatMoney(contract.cost_per_bill_cycle)} / ${contract.bill_cycle_length_weeks ?? '—'} wk cycle`
-
-            return (
-              <div
-                key={contract.id}
+          
+          return (
+            <div
+              key={contract.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => handleEdit(contract)}
@@ -600,19 +600,19 @@ export default function Contracts({
                   }
                 }}
                 className={`w-full text-left bg-background border rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors ${
-                  contract.status === 'active' ? 'border-green-500/50' : 'border-border'
+                contract.status === 'active' ? 'border-green-500/50' : 'border-border'
                 } ${editingId === contract.id ? 'ring-2 ring-primary' : ''}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-foreground">
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-foreground">
                     {contract.name || pkg?.name || 'Untitled contract'}
-                  </h3>
+                </h3>
                   <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 text-sm font-medium rounded ${statusClass(contract.status)}`}>
                       {contract.status
                         ? contract.status.charAt(0).toUpperCase() + contract.status.slice(1)
                         : 'Unknown'}
-                    </span>
+                </span>
                     <button
                       type="button"
                       onClick={(e) => handleDeleteClick(contract, e)}
@@ -623,20 +623,20 @@ export default function Contracts({
                     </button>
                     <Pencil className="h-4 w-4 text-muted-foreground" />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
-                  <div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                <div>
                     <span className="font-semibold text-foreground">Package:</span>{' '}
                     {pkg?.name || '—'}
-                  </div>
+                </div>
                   <div>
                     <span className="font-semibold text-foreground">Billing:</span> {billingLabel}
                   </div>
-                  <div>
+                <div>
                     <span className="font-semibold text-foreground">Start:</span>{' '}
                     {formatDate(contract.start_date)}
-                  </div>
+                </div>
                   <div>
                     <span className="font-semibold text-foreground">Renewal:</span>{' '}
                     {contract.until_cancelled ? 'Until cancelled' : formatDate(contract.renewal_date)}
@@ -649,12 +649,12 @@ export default function Contracts({
                           cadenceFromPackage(contract.package_id)
                       )}
                     </div>
-                  )}
-                </div>
+                )}
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
+      </div>
       )}
 
       <Dialog

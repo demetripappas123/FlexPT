@@ -3,7 +3,7 @@
 
 import Link from 'next/link'
 import React, { useState } from 'react'
-import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box } from 'lucide-react'
+import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box, ClipboardList } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Sidebar() {
@@ -106,6 +106,13 @@ export default function Sidebar() {
                   >
                     <UtensilsCrossed className="h-4 w-4 mr-3" />
                     <span>Nutrition</span>
+                  </Link>
+                  <Link
+                    href="/checkin-forms"
+                    className="flex items-center px-4 py-2 font-medium text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  >
+                    <ClipboardList className="h-4 w-4 mr-3" />
+                    <span>Check-in forms</span>
                   </Link>
                 </div>
               )}

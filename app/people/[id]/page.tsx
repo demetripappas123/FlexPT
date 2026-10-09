@@ -24,9 +24,14 @@ import AssignProgramWorkout from '@/modules/clients/assignprogramworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
+import ClientLogin from '@/modules/clients/clientlogin'
 import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
 import { AssignedMeal, fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
 import AssignMealDialogContent from '@/modules/clients/assignmealdialog'
+import AssignCheckinFormDialog from '@/modules/clients/assigncheckinformdialog'
+import FillCheckinFormDialog from '@/modules/clients/fillcheckinformdialog'
+import AssignedCheckinForms from '@/modules/clients/assignedcheckinforms'
+import { CheckinFormAssignment, fetchCheckinFormAssignments } from '@/supabase/fetches/fetchcheckinformassignments'
 import { useAuth } from '@/context/authcontext'
 import NutritionOverview from '@/modules/clients/nutritionoverview'
 import NutritionSubTabs from '@/modules/clients/nutritionsubtabs'
@@ -115,6 +120,10 @@ export default function PersonPage() {
   const [nutritionSubTab, setNutritionSubTab] = useState<'overview' | 'meals'>('overview')
   const [assignMealOpen, setAssignMealOpen] = useState(false)
   const [assignMealDate, setAssignMealDate] = useState<string | undefined>(undefined)
+  const [checkinAssignments, setCheckinAssignments] = useState<CheckinFormAssignment[] | null>(null)
+  const [checkinAssignmentsLoading, setCheckinAssignmentsLoading] = useState(false)
+  const [assignCheckinOpen, setAssignCheckinOpen] = useState(false)
+  const [fillCheckinId, setFillCheckinId] = useState<string | null>(null)
 
   const isClient = person?.converted_at !== null && person?.converted_at !== undefined
   const isProspect = !isClient
@@ -203,6 +212,25 @@ export default function PersonPage() {
     loadAssignedMeals()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, nutritionSubTab, person?.id])
+
+  useEffect(() => {
+    const loadCheckinAssignments = async () => {
+      if (activeTab !== 'progress' || !person) return
+
+      setCheckinAssignmentsLoading(true)
+      try {
+        const data = await fetchCheckinFormAssignments(person.id)
+        setCheckinAssignments(data)
+      } catch (err) {
+        console.error('Error loading assigned check-in forms:', err)
+        setCheckinAssignments([])
+      } finally {
+        setCheckinAssignmentsLoading(false)
+      }
+    }
+
+    loadCheckinAssignments()
+  }, [activeTab, person?.id])
 
   // Load packages data when packages tab is activated
   useEffect(() => {
@@ -419,6 +447,12 @@ export default function PersonPage() {
             </p>
           )}
         </div>
+
+        <ClientLogin
+          key={person.id}
+          person={person}
+          onUpdated={(updated) => setPerson(updated)}
+        />
       </div>
     )
   }
@@ -450,6 +484,14 @@ export default function PersonPage() {
           />
         )}
       </div>
+
+      {isClient && (
+        <ClientLogin
+          key={person.id}
+          person={person}
+          onUpdated={(updated) => setPerson(updated)}
+        />
+      )}
 
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-6 border-b border-border">
@@ -1226,6 +1268,16 @@ export default function PersonPage() {
       )}
 
       {activeTab === 'progress' && (
+        <div className="space-y-4">
+        <AssignedCheckinForms
+          assignments={checkinAssignments}
+          loading={checkinAssignmentsLoading}
+          onAssignClick={() => setAssignCheckinOpen(true)}
+          onFillClick={(assignment) => setFillCheckinId(assignment.id)}
+          onDeleted={(assignmentId) =>
+            setCheckinAssignments((prev) => (prev ?? []).filter((row) => row.id !== assignmentId))
+          }
+        />
         <div className="p-4 bg-card border border-border rounded-md space-y-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">Progress</h2>
           {/* Convert workouts to SessionWithExercises format for charts - use workout data primarily */}
@@ -1293,6 +1345,7 @@ export default function PersonPage() {
               status: w.session?.status || 'completed' as any,
               exercises: w.exercises || [],
             })) as SessionWithExercises[]} />
+        </div>
         </div>
       )}
 
@@ -1460,6 +1513,28 @@ export default function PersonPage() {
           }}
         />
       )}
+
+      {person && (
+        <AssignCheckinFormDialog
+          open={assignCheckinOpen}
+          onOpenChange={setAssignCheckinOpen}
+          personId={person.id}
+          onAssigned={(assignment) => {
+            setCheckinAssignments((prev) => [assignment, ...(prev ?? [])])
+          }}
+        />
+      )}
+
+      <FillCheckinFormDialog
+        open={fillCheckinId != null}
+        onOpenChange={(open) => !open && setFillCheckinId(null)}
+        assignmentId={fillCheckinId}
+        onSaved={(updated) => {
+          setCheckinAssignments((prev) =>
+            (prev ?? []).map((row) => (row.id === updated.id ? { ...row, status: updated.status } : row))
+          )
+        }}
+      />
 
       {/* Assign Meal Dialog */}
       {person && (
