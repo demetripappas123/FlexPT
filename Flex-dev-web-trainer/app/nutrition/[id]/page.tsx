@@ -119,7 +119,7 @@ export default function NutritionProgramPage() {
       meal_time: string | null
       name: string | null
       foods: Array<{
-        food_id: string | null // Food id from foods table (string)
+        food_id: string | null // uuid, foods.id
         food_name: string | null
         amount: number | null
         unit: string | null // food_unit id
@@ -217,12 +217,11 @@ export default function NutritionProgramPage() {
           console.log(`Creating ${meal.foods.length} foods for meal ${i + 1}`)
           for (const food of meal.foods) {
             if (food.food_id || food.food_name) {
-              // Find the food in library to get fdc_id
               const foodFromLibrary = food.food_id ? foodLibrary.find(f => f.id === food.food_id) : null
               
               const foodResult = await upsertDayMealFood({
                 meal_id: createdMeal.id, // Reference to day_meals.id
-                food_id: foodFromLibrary?.id || null, // Use foods.id (UUID string), not fdc_id
+                food_id: foodFromLibrary?.id || food.food_id || null,
                 food_name: food.food_name || foodFromLibrary?.description || null,
                 amount: food.amount !== null && food.amount !== undefined ? Number(food.amount) : null, // Ensure it's a number (int4)
                 unit: food.unit, // food_unit id as string
@@ -231,7 +230,7 @@ export default function NutritionProgramPage() {
               if (!foodResult) {
                 console.error(`Failed to create food for meal ${i + 1}:`, {
                   food_name: food.food_name || food.food_id,
-                  food_id: foodFromLibrary?.fdc_id,
+                  food_id: foodFromLibrary?.id || food.food_id,
                   amount: food.amount,
                   unit: food.unit,
                   meal_id: createdMeal.id

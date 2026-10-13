@@ -38,7 +38,7 @@ type AssignMealDialogContentProps = {
 type MealOption = 'program' | 'template' | 'create'
 
 type LocalFood = {
-  food_id: string | null // Food id from foods table (string)
+  food_id: string | null // uuid, foods.id
   food_name: string | null
   amount: number | null
   unit: string | null // food_unit id
@@ -265,7 +265,7 @@ export default function AssignMealDialogContent({
           const selectedFood = foodLibrary.find(f => f.id === food.food_id!)
           await upsertMealsOccurancesFood({
             meal_id: assignedMeal.id,
-            food_id: selectedFood?.id != null ? Number(selectedFood.id) : null,
+            food_id: selectedFood?.id ?? null,
             food_name: selectedFood?.description || food.food_name || null,
             amount: food.amount!,
             unit: food.unit!,
@@ -291,12 +291,12 @@ export default function AssignMealDialogContent({
       })
 
       if (assignedMeal) {
-        let sourceFoods: Array<{ food_id: number | null; food_name: string | null; amount: number | null; unit: string | null }> = []
+        let sourceFoods: Array<{ food_id: string | null; food_name: string | null; amount: number | null; unit: string | null }> = []
         
         if (mealOption === 'program') {
           const dayMealFoods = await fetchDayMealFoods([mealId])
           sourceFoods = dayMealFoods.map(f => ({
-            food_id: f.food_id != null ? Number(f.food_id) : null,
+            food_id: f.food_id,
             food_name: f.food_name,
             amount: f.amount,
             unit: f.unit,
@@ -304,7 +304,7 @@ export default function AssignMealDialogContent({
         } else if (mealOption === 'template') {
           const templateFoods = await fetchMealsTemplatesFoods([mealId])
           sourceFoods = templateFoods.map(f => ({
-            food_id: f.food_id != null ? Number(f.food_id) : null,
+            food_id: f.food_id,
             food_name: f.food_name,
             amount: f.amount,
             unit: f.unit,

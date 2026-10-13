@@ -3,7 +3,7 @@ import { supabase } from '@/supabase/supabaseClient'
 export type MealsTemplatesFood = {
   id: string // uuid
   meal_id: string // uuid, references meals_templates.id
-  food_id: number | null // integer, references foods.fdc_id
+  food_id: string | null // uuid, references foods.id
   food_name: string | null // text
   amount: number | null // int4 (numeric) in schema
   unit: string | null // text, references food_units.id

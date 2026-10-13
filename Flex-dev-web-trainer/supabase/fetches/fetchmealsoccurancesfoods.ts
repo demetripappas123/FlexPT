@@ -3,7 +3,7 @@ import { supabase } from '@/supabase/supabaseClient'
 export type MealsOccurancesFood = {
   id: string
   meal_id: string
-  food_id: number | null
+  food_id: string | null // uuid, references foods.id
   food_name: string | null
   amount: number | null
   unit: string | null

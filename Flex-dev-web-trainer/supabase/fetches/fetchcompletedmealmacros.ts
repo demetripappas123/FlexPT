@@ -56,9 +56,9 @@ export async function fetchCompletedMealMacrosByDate(
   }
 
   const rows = foods ?? []
-  const foodIds = [...new Set(rows.map((r) => r.food_id).filter((id): id is number => id != null))]
+  const foodIds = [...new Set(rows.map((r) => r.food_id).filter((id): id is string => id != null))]
 
-  let nutrientByFood = new Map<number, { kcal: number; kj: number; protein: number; carbs: number; fat: number }>()
+  let nutrientByFood = new Map<string, { kcal: number; kj: number; protein: number; carbs: number; fat: number }>()
   let servings: FoodServing[] = []
 
   if (foodIds.length > 0) {

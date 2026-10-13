@@ -52,7 +52,7 @@ const GRAMS_PER_UNIT: Record<string, number> = {
 }
 
 export type FoodServing = {
-  food_id: number | null
+  food_id: string | null
   serving_size: number | string
   unit_name: string
   description?: string | null
@@ -62,7 +62,7 @@ export function portionGrams(
   amount: number | null | undefined,
   unit: string | null | undefined,
   servings: FoodServing[],
-  foodId: number | null
+  foodId: string | null
 ): number | null {
   if (amount == null || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return null
   const qty = Number(amount)

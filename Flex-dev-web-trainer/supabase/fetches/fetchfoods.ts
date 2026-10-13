@@ -1,14 +1,18 @@
 import { supabase } from '@/supabase/supabaseClient'
 
 export type Food = {
-  id: string
-  fdc_id: number
+  id: string // uuid
+  fdc_id: number | null // USDA FDC id, not a FK
   description: string
   food_class?: string | null
   data_type?: string | null
   brand_name?: string | null
   category?: string | null
+  default_serving_id?: string | null // uuid, food_servings.id
+  trainer_id?: string | null
+  is_private?: boolean
   created_at?: string
+  updated_at?: string
 }
 
 export async function fetchFoods(searchQuery?: string): Promise<Food[]> {

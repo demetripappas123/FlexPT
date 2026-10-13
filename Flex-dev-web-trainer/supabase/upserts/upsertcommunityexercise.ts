@@ -21,7 +21,6 @@ export async function upsertCommunityExercise(exercise: CommunityExerciseInput):
       variations: exercise.variations || null,
       trainer_id: exercise.created_by || null, // Use trainer_id instead of created_by
       is_private: false, // Community exercises are public
-      updated_at: new Date().toISOString(),
     }
 
     if (exercise.id) {

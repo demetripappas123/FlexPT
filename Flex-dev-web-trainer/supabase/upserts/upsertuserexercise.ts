@@ -21,7 +21,6 @@ export async function upsertUserExercise(exercise: UserExerciseInput): Promise<U
       variations: exercise.variations || null,
       trainer_id: exercise.user_id, // Use trainer_id instead of user_id
       is_private: true, // Private trainer exercises
-      updated_at: new Date().toISOString(),
     }
 
     if (exercise.id) {

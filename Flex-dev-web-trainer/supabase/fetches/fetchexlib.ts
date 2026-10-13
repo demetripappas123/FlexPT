@@ -1,13 +1,18 @@
 import { supabase } from '@/supabase/supabaseClient'
 
 export type ExerciseLibraryItem = {
-  id: string
+  id: string // uuid
   name: string
   video_url: string | null
   gif_url: string | null
   img_url: string | null
+  movement_pattern: string | null
   variations: string[] | null
-  created_at: string
+  pause: string | null
+  tempo: string | null
+  trainer_id: string | null
+  is_private: boolean
+  created_at?: string // not a column on public.exercises
 }
 
 export async function fetchExercises(): Promise<ExerciseLibraryItem[]> {
@@ -46,8 +51,12 @@ export async function fetchExercises(): Promise<ExerciseLibraryItem[]> {
       video_url: item.video_url || null,
       gif_url: item.gif_url || null,
       img_url: item.img_url || null,
+      movement_pattern: item.movement_pattern || null,
       variations: item.variations || null,
-      created_at: item.created_at || new Date().toISOString(),
+      pause: item.pause || null,
+      tempo: item.tempo || null,
+      trainer_id: item.trainer_id ?? null,
+      is_private: item.is_private ?? true,
     })) as ExerciseLibraryItem[]
   } catch (err) {
     console.error('Error fetching exercises:', err)

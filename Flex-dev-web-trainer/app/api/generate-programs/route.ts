@@ -5,6 +5,8 @@ import { PROGRAM_BUILDER_SYSTEM_PROMPT } from '@/openai/prompts/programbuilder'
 import { fetchWeeksServer } from '@/supabase/fetches/server/fetchweek'
 import { fetchDayExercisesServer } from '@/supabase/fetches/server/fetchdayexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { expandExerciseHits, searchExercises } from '@/supabase/fetches/searchcatalog'
+import { supabaseAdmin } from '@/supabase/supabaseAdmin'
 import { deleteWeek } from '@/supabase/deletions/deleteweek'
 import { deleteDay } from '@/supabase/deletions/deleteday'
 import { deleteDayExercises } from '@/supabase/deletions/deletedayexercises'
@@ -115,6 +117,7 @@ async function fetchProgramStateForAI(programId: string | null, trainerId: strin
           return {
             name: day.name,
             exercises: exercises.map(ex => ({
+              exercise_id: ex.exercise_def_id,
               exercise_name: ex.exercise_name,
               sets: ex.sets,
               reps: ex.reps,
@@ -147,9 +150,9 @@ function buildEnhancedSystemPrompt(
   enhancedPrompt = `${enhancedPrompt}
 
 AVAILABLE EXERCISES IN LIBRARY:
-${exerciseList}
+${exerciseList || '(none retrieved — ask a clarifying question rather than inventing names)'}
 
-IMPORTANT: When specifying exercises in your program JSON, use the EXACT exercise name as shown above (case-sensitive).`
+IMPORTANT: When specifying exercises in your program JSON, use the EXACT exercise name as shown above. This is a retrieved subset, not the full catalog.`
 
   // Add program state if available
   if (programState) {
@@ -474,6 +477,19 @@ async function applyOperations(
   }
 }
 
+function collectProgramExerciseIds(programState: any): string[] {
+  if (!programState?.weeks) return []
+  const ids: string[] = []
+  for (const week of programState.weeks) {
+    for (const day of week.days ?? []) {
+      for (const ex of day.exercises ?? []) {
+        if (ex.exercise_id) ids.push(ex.exercise_id)
+      }
+    }
+  }
+  return [...new Set(ids)]
+}
+
 /* ───────────────────────────────────────────── */
 /* ROUTE                                        */
 /* ───────────────────────────────────────────── */
@@ -484,14 +500,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  // Fetch context in parallel for optimal speed
-  const [exerciseLibrary, programState, conversation] = await Promise.all([
-    fetchExercises(),
+  const [programState, conversation] = await Promise.all([
     programId ? fetchProgramStateForAI(programId, trainerId) : Promise.resolve(null),
     programId ? getOrCreateConversation(trainerId, programId, null, PROGRAM_BUILDER_SYSTEM_PROMPT).catch(() => null) : Promise.resolve(null),
   ])
 
-  // Build enhanced system prompt with context
+  const extraIds = collectProgramExerciseIds(programState)
+  let exerciseLibrary = await searchExercises(
+    { query: message, trainerId, extraIds, limit: 40 },
+    supabaseAdmin
+  )
+  // Rebuild / vague prompts often have no exercise tokens — keep a full base catalog fallback.
+  if (exerciseLibrary.length < 12) {
+    const base = await fetchExercises()
+    const seen = new Set(exerciseLibrary.map((e) => e.id))
+    exerciseLibrary = [
+      ...exerciseLibrary,
+      ...base.filter((e) => !seen.has(e.id)).map((e) => ({
+        id: e.id,
+        name: e.name,
+        source: 'base' as const,
+        trainer_id: e.trainer_id,
+        is_private: e.is_private,
+        variations: e.variations,
+        movement_pattern: e.movement_pattern,
+        rank: 0,
+      })),
+    ]
+  }
+
   const conversationSummary = conversation?.summary || null
   const enhancedSystemPrompt = buildEnhancedSystemPrompt(programState, exerciseLibrary, conversationSummary)
 
@@ -523,7 +560,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  await applyOperations(trainerId, programId, parsed.operations, exerciseLibrary)
+  const opNames = parsed.operations
+    .filter((op): op is Extract<Operation, { target: 'exercise' }> => op.target === 'exercise')
+    .map((op) => op.exercise_name)
+  const resolvedLibrary = await expandExerciseHits(exerciseLibrary, opNames, trainerId, supabaseAdmin)
+
+  await applyOperations(trainerId, programId, parsed.operations, resolvedLibrary)
 
   // Update conversation with latest messages (optional - non-blocking)
   if (conversation && parsed.type === 'program') {

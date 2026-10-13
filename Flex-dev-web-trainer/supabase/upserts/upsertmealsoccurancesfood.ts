@@ -4,17 +4,22 @@ import { MealsOccurancesFood } from '@/supabase/fetches/fetchmealsoccurancesfood
 export type MealsOccurancesFoodInput = {
   id?: string
   meal_id: string
-  food_id: number | null
+  food_id: string | null
   food_name: string | null
   amount: number | null
   unit: string | null
 }
 
-async function resolveFoodsPk(foodId: number | null): Promise<number | null> {
-  if (foodId == null) return null
-  const { data: byId } = await supabase.from('foods').select('id').eq('id', foodId).maybeSingle()
-  if (byId?.id != null) return byId.id
-  const { data: byFdc } = await supabase.from('foods').select('id').eq('fdc_id', foodId).maybeSingle()
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
+async function resolveFoodsPk(foodId: string | null): Promise<string | null> {
+  if (foodId == null || foodId.trim() === '') return null
+  if (isUuid(foodId)) return foodId
+  const fdcId = Number(foodId)
+  if (!Number.isFinite(fdcId)) return null
+  const { data: byFdc } = await supabase.from('foods').select('id').eq('fdc_id', fdcId).maybeSingle()
   return byFdc?.id ?? null
 }
 

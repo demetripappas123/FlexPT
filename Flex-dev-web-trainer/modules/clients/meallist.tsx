@@ -45,7 +45,7 @@ export default function MealList({ assignedMeals, personId, onMealUpdate }: Meal
     amount: number | null,
     unit: string | null,
     foodName: string | null,
-    foodPk: number | null
+    foodPk: string | null
   ) => {
     setSavingFoodId(foodId)
     try {

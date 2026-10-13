@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/command"
 
 type LocalFood = {
-  food_id: string | null // Food id from foods table (string)
+  food_id: string | null // uuid, foods.id
   food_name: string | null
   amount: number | null
   unit: string | null // food_unit id
@@ -103,7 +103,7 @@ export default function AddNutritionDayDialog({
           meal_time: meal.meal_time || null,
           name: meal.name,
           foods: meal.foods.map(food => ({
-            food_id: null, // We don't store food.id, only fdc_id
+            food_id: food.food_id,
             food_name: food.food_name,
             amount: food.amount || null, // Already a number (int4)
             unit: food.unit,
@@ -185,7 +185,7 @@ export default function AddNutritionDayDialog({
 
     // Add all foods from template to the meal
     const templateFoods: LocalFood[] = template.foods.map(food => ({
-      food_id: null, // We'll need to find the food by name or fdc_id
+      food_id: food.food_id,
       food_name: food.food_name,
       amount: food.amount,
       unit: food.unit,

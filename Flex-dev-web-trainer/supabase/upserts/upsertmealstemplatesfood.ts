@@ -4,7 +4,7 @@ import { MealsTemplatesFood } from '@/supabase/fetches/fetchmealstemplatesfoods'
 export type MealsTemplatesFoodInput = {
   id?: string // uuid
   meal_id: string // uuid, references meals_templates.id
-  food_id: number | null // integer, references foods.id
+  food_id: string | null // uuid, references foods.id
   food_name: string | null
   amount: number | null // int4 (numeric) in schema
   unit: string | null // text, references food_units.id
