@@ -32,6 +32,7 @@ export interface ExerciseSetFormData {
   rir?: string | null // numrange in PostgreSQL format
   rpe?: string | null // numrange in PostgreSQL format
   notes?: string | null
+  completed?: boolean
 }
 
 /**
@@ -159,6 +160,7 @@ export async function upsertExerciseSet(set: ExerciseSetFormData): Promise<any> 
     rir: set.rir ?? null,
     rpe: set.rpe ?? null,
     notes: set.notes ?? null,
+    completed: set.completed ?? false,
   }
 
   if (set.id) {
@@ -407,6 +409,7 @@ export async function upsertExerciseSets(
       rir: set.rir ?? null,
       rpe: set.rpe ?? null,
       notes: set.notes ?? null,
+      completed: set.completed ?? false,
     })
   })
 

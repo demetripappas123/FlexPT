@@ -25,7 +25,7 @@ import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutE
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import ClientLogin from '@/modules/clients/clientlogin'
-import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
+import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check, MessageSquare } from 'lucide-react'
 import { AssignedMeal, fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
 import AssignMealDialogContent from '@/modules/clients/assignmealdialog'
 import AssignCheckinFormDialog from '@/modules/clients/assigncheckinformdialog'
@@ -470,18 +470,27 @@ export default function PersonPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-3xl font-bold">{person.name}</h1>
         {isClient && (
-          <AddEventDialog
-            initialPersonId={person.id}
-            initialType="Client Session"
-            trigger={
-              <button
-                className="p-2 bg-muted hover:bg-muted/80 rounded-md text-foreground cursor-pointer transition-colors"
-                title="Schedule New Session"
-              >
-                <Calendar className="h-5 w-5" />
-              </button>
-            }
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push(`/chat/${person.id}`)}
+              className="p-2 bg-muted hover:bg-muted/80 rounded-md text-foreground cursor-pointer transition-colors"
+              title="Message client"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </button>
+            <AddEventDialog
+              initialPersonId={person.id}
+              initialType="Client Session"
+              trigger={
+                <button
+                  className="p-2 bg-muted hover:bg-muted/80 rounded-md text-foreground cursor-pointer transition-colors"
+                  title="Schedule New Session"
+                >
+                  <Calendar className="h-5 w-5" />
+                </button>
+              }
+            />
+          </div>
         )}
       </div>
 

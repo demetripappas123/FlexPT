@@ -251,8 +251,8 @@ export default function ConversionPage() {
 
         <div className="bg-green-600/20 border border-green-600/50 rounded-lg p-4 mb-6">
           <p className="text-green-400">
-            <strong>Info:</strong> Converting this prospect to a client will enable nutrition tracking and full client features. 
-            Please create a contract and select or create a package below.
+            <strong>Info:</strong> Assigning a package is what converts them — not completing a session.
+            Pick or create a package and contract below. Later we can tag which consult closed them.
           </p>
         </div>
 

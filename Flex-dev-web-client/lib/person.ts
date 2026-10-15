@@ -6,12 +6,13 @@ export type LinkedPerson = {
   email: string | null
   username: string | null
   auth_user_id: string | null
+  trainer_id: string | null
 }
 
 export async function fetchLinkedPerson(authUserId: string): Promise<LinkedPerson | null> {
   const { data, error } = await supabase
     .from('people')
-    .select('id, name, email, username, auth_user_id')
+    .select('id, name, email, username, auth_user_id, trainer_id')
     .eq('auth_user_id', authUserId)
     .maybeSingle()
 

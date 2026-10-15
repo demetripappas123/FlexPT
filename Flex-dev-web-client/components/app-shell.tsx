@@ -30,6 +30,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/check-ins" className={linkClass('/check-ins')}>
                 Check-ins
               </Link>
+              <Link href="/chat" className={linkClass('/chat')}>
+                Chat
+              </Link>
             </nav>
           </div>
           <button

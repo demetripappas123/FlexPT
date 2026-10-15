@@ -14,6 +14,8 @@ export interface Session {
   started_at: string | null // Actual time when session started
   end_time: string | null // Actual time when session finished
   created_at: string
+  // Not the convert action. Conversion is people.converted_at when a package is assigned.
+  // Keep this for later: which consult closed them.
   converted: boolean
   status: SessionStatus
 }
@@ -45,6 +47,7 @@ export interface ExerciseSet {
   rir: string | null // numrange in PostgreSQL format
   rpe: string | null // numrange in PostgreSQL format
   notes: string | null
+  completed: boolean
   created_at: string
 }
 

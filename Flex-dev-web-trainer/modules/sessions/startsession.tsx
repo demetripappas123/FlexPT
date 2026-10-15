@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, X, Trash2, Play, Pause, RotateCcw } from 'lucide-react'
+import { Plus, X, Trash2, Pause, Play, Check } from 'lucide-react'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
+import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
+import { deleteExerciseSet } from '@/supabase/deletions/deletesession'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
@@ -28,6 +30,16 @@ type TrackedSet = {
   rir: number | null // Display format (number) for UI, converted to numrange on save
   rpe: number | null // Display format (number) for UI, converted to numrange on save
   notes: string | null
+  completed: boolean
+}
+
+function rangeToNumber(value: string | null, integer = false): number | null {
+  if (!value) return null
+  const formatted = formatRangeDisplay(value)
+  if (!formatted) return null
+  const raw = formatted.includes('-') ? formatted.split('-')[0] : formatted
+  const num = integer ? parseInt(raw, 10) : parseFloat(raw)
+  return Number.isNaN(num) ? null : num
 }
 
 type TrackedExercise = {
@@ -56,15 +68,26 @@ export default function StartSession({
 }: StartSessionProps) {
   const [exercises, setExercises] = useState<TrackedExercise[]>([])
   const [loading, setLoading] = useState(false)
+  const [savingSetKey, setSavingSetKey] = useState<string | null>(null)
+  const [workoutId, setWorkoutId] = useState<string | null>(session.workout_id)
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
-  
-  // Timer state
-  const [timeElapsed, setTimeElapsed] = useState(0) // in seconds
-  const [isRunning, setIsRunning] = useState(false)
-  const [startTime, setStartTime] = useState<number | null>(null)
+  const [timeElapsed, setTimeElapsed] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const exercisesRef = useRef<TrackedExercise[]>([])
+  const workoutIdRef = useRef<string | null>(session.workout_id)
+  const initializedRef = useRef(false)
+  const startRequestedRef = useRef(false)
+
+  useEffect(() => {
+    exercisesRef.current = exercises
+  }, [exercises])
+
+  useEffect(() => {
+    workoutIdRef.current = workoutId
+  }, [workoutId])
 
   // Load exercise library
   useEffect(() => {
@@ -82,111 +105,74 @@ export default function StartSession({
   // localStorage key for this session
   const storageKey = `session_workout_${session.id}`
 
-  // Load from localStorage or initialize from session data
   useEffect(() => {
-    if (session.exercises) {
-      // Try to load from localStorage first
-      const savedData = localStorage.getItem(storageKey)
-      if (savedData) {
-        try {
-          const parsed = JSON.parse(savedData)
-          // Only use saved data if it's for the same session
-          if (parsed.sessionId === session.id) {
-            setExercises(parsed.exercises)
-            if (parsed.timeElapsed !== undefined) {
-              setTimeElapsed(parsed.timeElapsed)
-            }
-            if (parsed.isRunning !== undefined) {
-              setIsRunning(parsed.isRunning)
-            }
-            if (parsed.startTime !== undefined && parsed.startTime !== null) {
-              setStartTime(parsed.startTime)
-            }
-            return // Don't initialize from session if we loaded from localStorage
-          }
-        } catch (error) {
-          console.error('Error loading from localStorage:', error)
-          // Fall through to initialize from session
-        }
-      }
+    if (initializedRef.current) return
 
-      // Initialize from session data if no saved data
-      const trackedExercises: TrackedExercise[] = (session.exercises || []).map((ex) => ({
-        exercise_id: ex.exercise_id,
-        exercise_name: ex.exercise_name || 'Unknown Exercise',
-        session_exercise_id: ex.id,
-        position: ex.position,
-        notes: ex.notes,
-        sets: (ex.sets || []).map((set) => ({
-          id: set.id,
-          set_number: set.set_number,
-          // Convert numrange to single number for in_progress session (single numbers only)
-          // If range [x,y], take lower bound x; if [x,x], take x
-          weight: set.weight ? (() => {
-            const formatted = formatRangeDisplay(set.weight)
-            if (!formatted) return null
-            // Extract first number (lower bound) for single number input
-            const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
-            return isNaN(num) ? null : num
-          })() : null,
-          reps: set.reps ? (() => {
-            const formatted = formatRangeDisplay(set.reps)
-            if (!formatted) return null
-            const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
-            return isNaN(num) ? null : num
-          })() : null,
-          rir: set.rir ? (() => {
-            const formatted = formatRangeDisplay(set.rir)
-            if (!formatted) return null
-            const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
-            return isNaN(num) ? null : num
-          })() : null,
-          rpe: set.rpe ? (() => {
-            const formatted = formatRangeDisplay(set.rpe)
-            if (!formatted) return null
-            const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
-            return isNaN(num) ? null : num
-          })() : null,
-          notes: set.notes,
-        })),
-      }))
-      setExercises(trackedExercises)
+    const fromDb: TrackedExercise[] = (session.exercises || []).map((ex) => ({
+      exercise_id: ex.exercise_id,
+      exercise_name: ex.exercise_name || 'Unknown Exercise',
+      session_exercise_id: ex.id,
+      position: ex.position,
+      notes: ex.notes,
+      sets: (ex.sets || []).map((set) => ({
+        id: set.id,
+        set_number: set.set_number,
+        weight: rangeToNumber(set.weight),
+        reps: rangeToNumber(set.reps, true),
+        rir: rangeToNumber(set.rir, true),
+        rpe: rangeToNumber(set.rpe),
+        notes: set.notes,
+        completed: set.completed === true,
+      })),
+    }))
+
+    const savedData = localStorage.getItem(storageKey)
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData)
+        if (parsed.sessionId === session.id && Array.isArray(parsed.exercises)) {
+          const dbById = new Map(
+            fromDb.flatMap((ex) => ex.sets.filter((s) => s.id).map((s) => [s.id as string, s]))
+          )
+          const merged: TrackedExercise[] = parsed.exercises.map((ex: TrackedExercise, index: number) => {
+            const dbEx = fromDb[index]
+            return {
+              ...ex,
+              session_exercise_id: ex.session_exercise_id || dbEx?.session_exercise_id,
+              sets: (ex.sets ?? []).map((set) => {
+                const dbSet = set.id ? dbById.get(set.id) : undefined
+                if (dbSet?.completed) return { ...set, ...dbSet, completed: true }
+                return { ...set, completed: set.completed === true }
+              }),
+            }
+          })
+          setExercises(merged.length ? merged : fromDb)
+          initializedRef.current = true
+          return
+        }
+      } catch (error) {
+        console.error('Error loading from localStorage:', error)
+      }
     }
+
+    setExercises(fromDb)
+    initializedRef.current = true
   }, [session.exercises, session.id, storageKey])
 
-  // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-    if (isRunning && startTime !== null) {
-      interval = setInterval(() => {
-        setTimeElapsed(Math.floor((Date.now() - startTime) / 1000))
-      }, 1000)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [isRunning, startTime])
+    if (session.started_at || !onSessionStart || startRequestedRef.current) return
+    startRequestedRef.current = true
+    onSessionStart().catch((err) => console.error('Error setting session start:', err))
+  }, [session.started_at, onSessionStart])
 
-  const handleStartPause = async () => {
-    if (isRunning) {
-      setIsRunning(false)
-    } else {
-      // If this is the first time starting, call onSessionStart to set started_at
-      if (!session.started_at && onSessionStart) {
-        await onSessionStart()
-      }
-      // Calculate the offset based on current elapsed time
-      const offset = timeElapsed * 1000
-      setStartTime(Date.now() - offset)
-      setIsRunning(true)
-    }
-  }
-
-  const handleReset = () => {
-    setIsRunning(false)
-    setTimeElapsed(0)
-    setStartTime(null)
-  }
+  useEffect(() => {
+    if (!session.started_at || isPaused) return
+    const started = new Date(session.started_at).getTime()
+    const tick = () => setTimeElapsed(Math.max(0, Math.floor((Date.now() - started) / 1000)))
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [session.started_at, isPaused])
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600)
@@ -198,19 +184,133 @@ export default function StartSession({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Save to localStorage whenever exercises change
   useEffect(() => {
     if (exercises.length > 0) {
-      const dataToSave = {
-        sessionId: session.id,
-        exercises,
-        timeElapsed,
-        isRunning,
-        startTime,
-      }
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ sessionId: session.id, exercises, isPaused })
+      )
     }
-  }, [exercises, timeElapsed, isRunning, startTime, session.id, storageKey])
+  }, [exercises, isPaused, session.id, storageKey])
+
+  const persistLiveSet = async (
+    exerciseIndex: number,
+    setIndex: number,
+    patch: Partial<TrackedSet> = {}
+  ) => {
+    const exercise = exercisesRef.current[exerciseIndex]
+    const currentSet = exercise?.sets[setIndex]
+    if (!exercise || !currentSet) return
+    if (!exercise.exercise_id) {
+      throw new Error('Pick an exercise before logging a set')
+    }
+
+    const nextSet: TrackedSet = { ...currentSet, ...patch }
+    let nextWorkoutId = workoutIdRef.current
+
+    if (!nextWorkoutId) {
+      if (!session.person_id) throw new Error('Session has no person')
+      const workout = await upsertWorkout({
+        person_id: session.person_id,
+        day_id: null,
+        completed: false,
+      })
+      nextWorkoutId = workout.id
+      workoutIdRef.current = nextWorkoutId
+      setWorkoutId(nextWorkoutId)
+      await upsertSession({
+        id: session.id,
+        type: session.type,
+        person_id: session.person_id,
+        trainer_id: session.trainer_id,
+        start_time: session.start_time,
+        started_at: session.started_at,
+        workout_id: nextWorkoutId,
+        converted: session.converted,
+        status: 'in_progress',
+      })
+    }
+
+    let exerciseRowId = exercise.session_exercise_id
+    if (!exerciseRowId) {
+      const row = await upsertSessionExercise({
+        workout_id: nextWorkoutId,
+        exercise_id: exercise.exercise_id,
+        position: exercise.position,
+        notes: exercise.notes,
+      })
+      exerciseRowId = row.id
+    }
+
+    const saved = await upsertExerciseSet({
+      id: nextSet.id,
+      session_exercise_id: exerciseRowId,
+      set_number: nextSet.set_number,
+      weight: nextSet.weight != null ? parseRangeInput(String(nextSet.weight)) : null,
+      reps: nextSet.reps != null ? parseRangeInput(String(nextSet.reps)) : null,
+      rir: nextSet.rir != null ? parseRangeInput(String(nextSet.rir)) : null,
+      rpe: nextSet.rpe != null ? parseRangeInput(String(nextSet.rpe)) : null,
+      notes: nextSet.notes,
+      completed: nextSet.completed,
+    })
+
+    setExercises((prev) =>
+      prev.map((ex, i) =>
+        i !== exerciseIndex
+          ? ex
+          : {
+              ...ex,
+              session_exercise_id: exerciseRowId,
+              sets: ex.sets.map((s, j) =>
+                j === setIndex ? { ...s, ...patch, id: saved.id } : s
+              ),
+            }
+      )
+    )
+  }
+
+  const toggleSetComplete = async (exerciseIndex: number, setIndex: number) => {
+    const set = exercisesRef.current[exerciseIndex]?.sets[setIndex]
+    if (!set) return
+    const completed = !set.completed
+    const key = `${exerciseIndex}-${setIndex}`
+    setSavingSetKey(key)
+    setExercises((prev) =>
+      prev.map((ex, i) =>
+        i !== exerciseIndex
+          ? ex
+          : {
+              ...ex,
+              sets: ex.sets.map((s, j) => (j === setIndex ? { ...s, completed } : s)),
+            }
+      )
+    )
+    try {
+      await persistLiveSet(exerciseIndex, setIndex, { completed })
+    } catch (err) {
+      console.error('Error persisting set:', err)
+      setExercises((prev) =>
+        prev.map((ex, i) =>
+          i !== exerciseIndex
+            ? ex
+            : {
+                ...ex,
+                sets: ex.sets.map((s, j) =>
+                  j === setIndex ? { ...s, completed: set.completed } : s
+                ),
+              }
+        )
+      )
+      alert(err instanceof Error ? err.message : 'Could not save set')
+    } finally {
+      setSavingSetKey(null)
+    }
+  }
+
+  const flushCompletedSet = (exerciseIndex: number, setIndex: number) => {
+    if (!exercisesRef.current[exerciseIndex]?.sets[setIndex]?.completed) return
+    persistLiveSet(exerciseIndex, setIndex).catch((err) => console.error('Error saving set:', err))
+  }
 
   const updateExerciseNotes = (index: number, notes: string) => {
     setExercises((prev) =>
@@ -254,6 +354,7 @@ export default function StartSession({
             rir: null,
             rpe: null,
             notes: null,
+            completed: false,
           },
         ],
       }
@@ -261,15 +362,25 @@ export default function StartSession({
     })
   }
 
-  const removeSet = (exerciseIndex: number, setIndex: number) => {
+  const removeSet = async (exerciseIndex: number, setIndex: number) => {
+    const set = exercisesRef.current[exerciseIndex]?.sets[setIndex]
+    if (set?.id) {
+      try {
+        await deleteExerciseSet(set.id)
+      } catch (err) {
+        console.error('Error deleting set:', err)
+        alert('Could not delete set')
+        return
+      }
+    }
     setExercises((prev) => {
       const updated = [...prev]
-      updated[exerciseIndex].sets = updated[exerciseIndex].sets.filter((_, idx) => idx !== setIndex)
-      // Re-number sets after removal to keep them sequential
-      updated[exerciseIndex].sets = updated[exerciseIndex].sets.map((set, idx) => ({
-        ...set,
-        set_number: idx + 1,
-      }))
+      updated[exerciseIndex] = {
+        ...updated[exerciseIndex],
+        sets: updated[exerciseIndex].sets
+          .filter((_, idx) => idx !== setIndex)
+          .map((row, idx) => ({ ...row, set_number: idx + 1 })),
+      }
       return updated
     })
   }
@@ -312,7 +423,7 @@ export default function StartSession({
       // Filter out exercises without exercise_id (incomplete exercises)
       const validExercises = exercises.filter(ex => ex.exercise_id && ex.exercise_id.trim() !== '')
 
-      let workoutId = session.workout_id
+      let workoutId = workoutIdRef.current || session.workout_id
 
       // If there are exercises but no workout, create a workout
       if (validExercises.length > 0 && !workoutId) {
@@ -368,6 +479,7 @@ export default function StartSession({
               rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
               rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
               notes: set.notes ?? null,
+              completed: set.completed === true,
             }))
 
             // Use smart update for sets (compares and updates/inserts/deletes as needed)
@@ -418,51 +530,53 @@ export default function StartSession({
     }
   }
 
+  const completedSetCount = exercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((s) => s.completed).length,
+    0
+  )
+  const totalSetCount = exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
+
   return (
-    <main className="min-h-screen bg-background text-foreground p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Track Session Workout</h1>
-          <div className="flex items-center gap-4">
-            {/* Timer */}
-            <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
-              <span className="text-2xl font-mono font-semibold text-foreground">
-                {formatTime(timeElapsed)}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleStartPause}
-                  variant="outline"
-                  size="sm"
-                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
-                >
-                  {isRunning ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  size="sm"
-                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
-                  disabled={timeElapsed === 0}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Live workout</p>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-3xl font-semibold tabular-nums">{formatTime(timeElapsed)}</span>
+              <button
+                type="button"
+                onClick={() => setIsPaused((prev) => !prev)}
+                className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted cursor-pointer"
+                title={isPaused ? 'Resume timer' : 'Pause timer'}
+              >
+                {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              </button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {completedSetCount}/{totalSetCount} sets
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               onClick={onCancel}
               variant="outline"
               className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
             >
               <X className="h-4 w-4 mr-2" />
-              Cancel
+              Close
+            </Button>
+            <Button
+              onClick={handleFinishSession}
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white cursor-pointer"
+            >
+              {loading ? 'Finishing...' : 'Finish'}
             </Button>
           </div>
         </div>
+      </div>
+      <div className="max-w-6xl mx-auto p-8">
 
         <div className="space-y-6">
           {exercises.length === 0 ? (
@@ -582,25 +696,27 @@ export default function StartSession({
                 </div>
 
               {/* Sets */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-8 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
+              <div className="space-y-2">
+                <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1.4fr_44px_32px] gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border">
                   <div>Set</div>
                   <div>Weight</div>
                   <div>Reps</div>
                   <div>RIR</div>
                   <div>RPE</div>
                   <div>Notes</div>
-                  <div></div>
+                  <div className="text-center">Done</div>
                   <div></div>
                 </div>
 
                 {exercise.sets && exercise.sets.length > 0 ? (
                   exercise.sets.map((set, setIndex) => (
                     <div
-                      key={setIndex}
-                      className="grid grid-cols-8 gap-2 items-center"
+                      key={set.id || setIndex}
+                      className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1.4fr_44px_32px] gap-2 items-center rounded-md px-1 py-1 ${
+                        set.completed ? 'bg-green-500/15' : ''
+                      }`}
                     >
-                    <div className="text-sm text-muted-foreground">{set.set_number}</div>
+                    <div className="text-sm font-medium text-muted-foreground">{set.set_number}</div>
                     <Input
                       type="number"
                       step="0.5"
@@ -631,7 +747,8 @@ export default function StartSession({
                         }
                       }}
                       placeholder="Weight"
-                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
+                      className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -660,7 +777,8 @@ export default function StartSession({
                         }
                       }}
                       placeholder="Reps"
-                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
+                      className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -689,7 +807,8 @@ export default function StartSession({
                         }
                       }}
                       placeholder="RIR"
-                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
+                      className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -720,7 +839,8 @@ export default function StartSession({
                         }
                       }}
                       placeholder="RPE"
-                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
+                      className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="text"
@@ -729,9 +849,28 @@ export default function StartSession({
                         updateSet(exerciseIndex, setIndex, 'notes', e.target.value || null)
                       }
                       placeholder="Notes"
-                      className="bg-input text-foreground border-border text-xs h-8"
+                      className="bg-input text-foreground border-border text-xs h-9"
+                      onBlur={() => {
+                        if (set.completed) {
+                          persistLiveSet(exerciseIndex, setIndex).catch((err) =>
+                            console.error('Error saving set:', err)
+                          )
+                        }
+                      }}
                     />
-                    <div></div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSetComplete(exerciseIndex, setIndex)}
+                      disabled={savingSetKey === `${exerciseIndex}-${setIndex}`}
+                      title={set.completed ? 'Uncheck set' : 'Complete set'}
+                      className={`h-9 w-9 rounded-md flex items-center justify-center cursor-pointer border ${
+                        set.completed
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'border-border bg-card text-muted-foreground hover:border-green-500 hover:text-green-500'
+                      } disabled:opacity-50`}
+                    >
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </button>
                     <button
                       onClick={() => removeSet(exerciseIndex, setIndex)}
                       className="p-1 text-destructive hover:text-destructive/80 cursor-pointer flex items-center justify-center"

@@ -17,8 +17,6 @@ import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supab
 import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getServerTime } from '@/supabase/utils/getServerTime'
-import { fetchPersonById } from '@/supabase/fetches/fetchpeople'
-import { UserCheck } from 'lucide-react'
 import { formatRangeDisplay, parseRangeInput } from '@/supabase/utils/rangeparse'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +33,6 @@ export default function EventPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
-  const [person, setPerson] = useState<any>(null)
 
   useEffect(() => {
     const loadSession = async () => {
@@ -49,16 +46,6 @@ export default function EventPage() {
         const sessionWithExercises = await fetchSessionWithExercises(id)
         if (sessionWithExercises) {
           setSession(sessionWithExercises)
-          
-          // Fetch person data to check converted_at status
-          if (sessionWithExercises.person_id) {
-            try {
-              const personData = await fetchPersonById(sessionWithExercises.person_id)
-              setPerson(personData)
-            } catch (err) {
-              console.error('Error fetching person:', err)
-            }
-          }
         } else {
           setSession(null)
         }
@@ -167,19 +154,6 @@ export default function EventPage() {
           </p>
         </div>
 
-        {/* Convert to Client button - show if completed, not converted, and person is not already a client */}
-        {session.status === 'completed' && !session.converted && session.person_id && person && person.converted_at === null && (
-          <div className="mb-8">
-            <Button
-              onClick={() => router.push(`/conversion/${session.person_id}`)}
-              className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer"
-            >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Convert to Client
-            </Button>
-          </div>
-        )}
-
         {/* Display completed workout with actual sets */}
         {session.exercises && session.exercises.length > 0 ? (
           <div className="mt-8 bg-card border border-border rounded-lg p-6">
@@ -197,22 +171,24 @@ export default function EventPage() {
                   </div>
                   {exercise.sets && exercise.sets.length > 0 && (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
+                      <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
                         <div>Set</div>
                         <div>Weight</div>
                         <div>Reps</div>
                         <div>RIR</div>
                         <div>RPE</div>
                         <div>Notes</div>
+                        <div>Done</div>
                       </div>
                       {exercise.sets.map((set, setIdx) => (
-                        <div key={set.id || setIdx} className="grid grid-cols-6 gap-2 text-sm text-muted-foreground">
+                        <div key={set.id || setIdx} className="grid grid-cols-7 gap-2 text-sm text-muted-foreground">
                           <div>{set.set_number}</div>
                           <div className={set.weight !== null ? 'text-foreground font-medium' : ''}>{set.weight ?? '-'}</div>
                           <div className={set.reps !== null ? 'text-foreground font-medium' : ''}>{set.reps ?? '-'}</div>
                           <div className={set.rir !== null ? 'text-foreground font-medium' : ''}>{set.rir ?? '-'}</div>
                           <div className={set.rpe !== null ? 'text-foreground font-medium' : ''}>{set.rpe ?? '-'}</div>
                           <div className="text-xs">{set.notes || '-'}</div>
+                          <div>{set.completed ? '✓' : ''}</div>
                         </div>
                       ))}
                     </div>

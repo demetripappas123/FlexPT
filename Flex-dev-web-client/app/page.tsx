@@ -53,12 +53,20 @@ function HomeContent() {
         {personError && <p className="text-red-700">{personError}</p>}
       </dl>
 
-      <Link
-        href="/check-ins"
-        className="inline-flex cursor-pointer rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
-      >
-        Open check-ins
-      </Link>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/check-ins"
+          className="inline-flex cursor-pointer rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+        >
+          Open check-ins
+        </Link>
+        <Link
+          href="/chat"
+          className="inline-flex cursor-pointer rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 hover:bg-stone-50"
+        >
+          Message trainer
+        </Link>
+      </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@
 
 import Link from 'next/link'
 import React, { useState } from 'react'
-import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box, ClipboardList } from 'lucide-react'
+import { Settings, ChevronDown, ChevronRight, LayoutDashboard, Users, UserPlus, Calendar, BookOpen, Folder, Dumbbell, List, UtensilsCrossed, Box, ClipboardList, MessageSquare } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Sidebar() {
@@ -38,6 +38,13 @@ export default function Sidebar() {
             >
               <Users className="h-5 w-5 mr-3" />
               <span className="font-medium">Clients</span>
+            </Link>
+            <Link
+              href="/chat"
+              className="flex items-center px-4 py-3 text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            >
+              <MessageSquare className="h-5 w-5 mr-3" />
+              <span className="font-medium">Chat</span>
             </Link>
             <Link
               href="/prospects"
