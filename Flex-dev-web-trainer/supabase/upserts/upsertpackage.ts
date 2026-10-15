@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import { Package } from '../fetches/fetchpackages'
+import { Package, PaymentCollector } from '../fetches/fetchpackages'
 
 /**
  * Package template row. Billing defaults only — no person/start/renewal.
@@ -15,6 +15,7 @@ export interface PackageFormData {
   trainer_id?: string | null
   bill_cycle_length_weeks?: number | null
   until_cancelled?: boolean | null
+  payment_collector?: PaymentCollector
 }
 
 function toNumericOrNull(value: number | null | undefined): number | null {
@@ -45,6 +46,7 @@ function toPackageRow(packageData: PackageFormData): Record<string, unknown> {
     trainer_id: packageData.trainer_id ?? null,
     bill_cycle_length_weeks: isPif ? null : toIntegerOrNull(packageData.bill_cycle_length_weeks),
     until_cancelled: isPif ? false : (packageData.until_cancelled ?? false),
+    payment_collector: packageData.payment_collector ?? 'flex',
   }
 }
 

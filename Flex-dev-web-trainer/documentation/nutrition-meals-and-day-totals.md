@@ -11,7 +11,9 @@ Client daily calories/macros are **two layers**:
 
 **Displayed day total = extra + from meals.** Goals still compare to that total.
 
-Completed meals are not a lock on the day. Changing portions, foods, or status recalculates the meal layer. Extra is left alone. Uncheck / skip / delete a completed meal drops it from the meal layer (reverse is free).
+Completed meals are not a lock on the day. Changing **eaten** portions, foods, or status recalculates the meal layer. Extra is left alone. Uncheck / skip / delete a completed meal drops it from the meal layer (reverse is free).
+
+Assigned vs eaten is the same split as workouts. One `meals_occurances` row. Prescription freezes on `meals_foods_instances.prescribed_*` at assign. Logging writes `amount` / `unit` / `food_id`. Completing with empty eaten copies prescribed → eaten (ate as assigned). Day totals sum **eaten**, never the plan. Do not clone nutrition weeks/days. See `program-assignments-mesocycles.md`.
 
 Pending and skipped meals contribute **nothing**. Assigned meals are optional.
 
@@ -24,7 +26,7 @@ Micros stay on foods (`food_nutrients`). Only Energy (kcal), Protein, Carbohydra
 | `nutrition_entries` | Extra calories/macros per client per date. Legacy `calories` / `protein_grams` / `carbs_grams` / `fats_grams` are kept in sync with extra for older readers. |
 | `client_nutrition_goals` | Monthly calorie/macro targets. Unchanged. |
 | `meals_occurances` | Assigned meal instance. `assigned_date` is the calendar day. `status` is pending / completed / skipped. `meal_id` is an optional program/template source. |
-| `meals_foods_instances` | Foods and portions on an occurrence (`amount` + `unit`). |
+| `meals_foods_instances` | Occurrence foods. `prescribed_*` = assigned portion/food. `amount` / `unit` / `food_id` = eaten. |
 | `food_nutrients` + `nutrients` | Per-100g nutrients. Macros use nutrient ids Energy kcal `1093`, Protein `1045`, Carb `1092`, Fat `1091`. |
 | `food_servings` / `food_units` | Portion scaling (g, oz, serving, etc.). |
 

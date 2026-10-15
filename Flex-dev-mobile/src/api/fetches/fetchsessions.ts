@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 
 export type SessionType = 'Client Session' | 'Prospect Session' | 'Intro Session' | 'Followup Session'
 export type SessionStatus = 'pending' | 'in_progress' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
+export type SessionMissed = 'suggested' | 'missed' | 'cancelled' | null
 
 export interface Session {
   id: string
@@ -15,8 +16,10 @@ export interface Session {
   end_time: string | null // Actual time when session finished
   created_at: string
   // Not the convert action. Conversion is people.converted_at when a package is assigned.
+  // Keep this for later: which consult closed them.
   converted: boolean
   status: SessionStatus
+  missed: SessionMissed
 }
 
 export interface SessionWithExercises extends Session {
@@ -30,6 +33,11 @@ export interface SessionExercise {
   position: number
   notes: string | null
   created_at: string
+  prescribed_sets?: string | null
+  prescribed_reps?: string | null
+  prescribed_weight?: string | null
+  prescribed_rpe?: string | null
+  prescribed_rir?: string | null
 }
 
 export interface SessionExerciseWithName extends SessionExercise {

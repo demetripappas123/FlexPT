@@ -17,6 +17,7 @@ export type AssignedMeal = {
   updated_at: string
   name: string // NOT NULL - meal name (from source or on-the-spot)
   trainer_id: string | null // uuid
+  program_assignment_id?: string | null
   meal_name?: string | null // Computed: name from source meal if meal_id exists, otherwise use name field
   foods?: AssignedMealFood[] // Foods from meals_occurances_foods
 }

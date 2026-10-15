@@ -43,21 +43,6 @@ export async function fetchTrainerConversations(trainerId: string): Promise<Chat
   }))
 }
 
-export async function fetchClientConversation(): Promise<ChatConversation | null> {
-  const { data, error } = await supabase
-    .from('chat_conversations')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    console.error('Error fetching client conversation:', error)
-    throw error
-  }
-  return data
-}
-
 export async function fetchChatMessages(
   conversationId: string,
   limit = 80

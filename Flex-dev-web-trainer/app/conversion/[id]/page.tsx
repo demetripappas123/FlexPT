@@ -177,6 +177,7 @@ export default function ConversionPage() {
         email: trimmedEmail || person.email || null,
         username: trimmedUsername || person.username || null,
         converted_at: new Date().toISOString(),
+        onboarding_status: 'in_progress',
       })
 
       if (trimmedEmail && loginPassword) {

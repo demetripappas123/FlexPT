@@ -5,6 +5,7 @@ import { WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { ChevronLeft, ChevronRight, Check, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { updateWorkout } from '@/supabase/upserts/upsertworkout'
+import { workoutCalendarChipClass, workoutDeliveryLabel } from '@/supabase/utils/workoutDelivery'
 
 type WorkoutCalendarProps = {
   workouts: WorkoutWithData[]
@@ -179,15 +180,11 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
                   <div
                     key={workout.id}
                     onClick={() => onWorkoutClick(workout)}
-                    className={`p-1.5 rounded text-xs cursor-pointer transition-colors ${
-                      workout.completed
-                        ? 'bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30'
-                        : 'bg-orange-600/20 border border-orange-600/50 text-orange-400 hover:bg-orange-600/30'
-                    }`}
+                    className={`p-1.5 rounded text-xs cursor-pointer transition-colors ${workoutCalendarChipClass(workout)}`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium truncate">
-                        {workout.completed ? '✓' : '○'} Workout
+                        {workout.completed ? '✓' : '○'} {workout.day_name || 'Workout'}
                       </span>
                       {!workout.completed && (
                         <button
@@ -198,6 +195,9 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
                           <Check className="h-3 w-3" />
                         </button>
                       )}
+                    </div>
+                    <div className="text-[10px] opacity-80 mt-0.5 truncate">
+                      {workoutDeliveryLabel(workout)}
                     </div>
                     {workout.exercises && workout.exercises.length > 0 && (
                       <div className="text-xs text-muted-foreground mt-0.5">

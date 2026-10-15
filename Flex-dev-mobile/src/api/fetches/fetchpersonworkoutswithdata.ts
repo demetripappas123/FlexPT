@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { Workout } from './fetchworkouts'
 import { Session } from './fetchsessions'
+import { isActiveSession } from '../utils/workoutDelivery'
 
 export interface WorkoutWithData extends Workout {
   session?: Session | null
@@ -13,6 +14,11 @@ export interface WorkoutWithData extends Workout {
     notes: string | null
     created_at: string
     exercise_name?: string
+    prescribed_sets?: string | null
+    prescribed_reps?: string | null
+    prescribed_weight?: string | null
+    prescribed_rpe?: string | null
+    prescribed_rir?: string | null
     sets: Array<{
       id: string
       session_exercise_id: string
@@ -21,6 +27,11 @@ export interface WorkoutWithData extends Workout {
       reps: string | null // numrange in PostgreSQL format
       rir: string | null // numrange in PostgreSQL format
       rpe: string | null // numrange in PostgreSQL format
+      completed?: boolean
+      prescribed_weight?: string | null
+      prescribed_reps?: string | null
+      prescribed_rir?: string | null
+      prescribed_rpe?: string | null
       notes: string | null
       created_at: string
     }>
@@ -79,7 +90,9 @@ export async function fetchPersonWorkoutsWithData(personId: string, trainerId?: 
   const sessionMap = new Map<string, Session>()
   if (sessions) {
     sessions.forEach(session => {
-      if (session.workout_id) {
+      if (!session.workout_id) return
+      const existing = sessionMap.get(session.workout_id)
+      if (!existing || (!isActiveSession(existing) && isActiveSession(session))) {
         sessionMap.set(session.workout_id, session)
       }
     })

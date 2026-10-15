@@ -21,6 +21,10 @@ It is **not** a reusable template. A workout library, program day, or similar ca
 
 Copying from a program day or a library item into a client means: insert `workouts` + exercises/sets. The source template rows stay put.
 
+A **mesocycle** is not a cloned program tree. It is `program_assignments` grouping dated `workouts` (and meals/check-ins/goals). See `program-assignments-mesocycles.md`.
+
+Delivery intent lives on `workouts.delivery` (`session` | `solo`), copied from `program_days.delivery` when a program is assigned. A booked session still overlays via `sessions.workout_id`; remaining `SESSION` units are required to schedule.
+
 ## Sessions overlay a workout
 
 - `sessions.workout_id` is optional. A booked session can exist before a workout is assigned.

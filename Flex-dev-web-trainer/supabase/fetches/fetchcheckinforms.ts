@@ -1,6 +1,14 @@
 import { supabase } from '@/supabase/supabaseClient'
 
 export type CheckinFieldType = 'text' | 'long_text' | 'number' | 'scale' | 'yes_no'
+export type CheckinFormPurpose = 'intake' | 'checkin' | 'habit' | 'other'
+
+export const CHECKIN_FORM_PURPOSE_LABEL: Record<CheckinFormPurpose, string> = {
+  intake: 'Intake',
+  checkin: 'Check-in',
+  habit: 'Habit',
+  other: 'Other',
+}
 
 export type CheckinFormField = {
   id: string
@@ -18,6 +26,7 @@ export type CheckinForm = {
   trainer_id: string | null
   name: string
   description: string | null
+  purpose: CheckinFormPurpose
   created_at?: string
   updated_at?: string
   fields?: CheckinFormField[]
@@ -35,7 +44,7 @@ export async function fetchCheckinForms(trainerId: string): Promise<CheckinForm[
     throw error
   }
 
-  return data ?? []
+  return (data ?? []).map((form) => ({ ...form, purpose: form.purpose ?? 'checkin' }))
 }
 
 export async function fetchCheckinFormWithFields(formId: string): Promise<CheckinForm | null> {
@@ -62,5 +71,5 @@ export async function fetchCheckinFormWithFields(formId: string): Promise<Checki
     throw fieldsError
   }
 
-  return { ...form, fields: fields ?? [] }
+  return { ...form, purpose: form.purpose ?? 'checkin', fields: fields ?? [] }
 }

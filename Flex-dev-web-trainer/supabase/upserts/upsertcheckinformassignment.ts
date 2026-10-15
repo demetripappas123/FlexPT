@@ -10,6 +10,7 @@ export type AssignCheckinFormInput = {
   trainerId: string | null
   formId: string
   assignedDate: string
+  programAssignmentId?: string | null
 }
 
 export async function assignCheckinForm(input: AssignCheckinFormInput): Promise<CheckinFormAssignment> {
@@ -27,8 +28,10 @@ export async function assignCheckinForm(input: AssignCheckinFormInput): Promise<
         form_id: form.id,
         name: form.name,
         description: form.description,
+        purpose: form.purpose ?? 'checkin',
         assigned_date: input.assignedDate,
         status: 'assigned',
+        program_assignment_id: input.programAssignmentId ?? null,
         updated_at: new Date().toISOString(),
       },
     ])

@@ -7,7 +7,7 @@ import { fetchClients } from '@/supabase/fetches/fetchpeople'
 import { upsertPayment } from '@/supabase/upserts/upsertpayment'
 import { applyPaymentToPersonPackages } from '@/supabase/utils/applyPaymentToPersonPackages'
 import { Payment } from '@/supabase/fetches/fetchpayments'
-import { Contract } from '@/supabase/fetches/fetchcontracts'
+import { Contract, contractAllowsManualPayment } from '@/supabase/fetches/fetchcontracts'
 import { Person } from '@/supabase/fetches/fetchpeople'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,7 +50,12 @@ export default function PaymentsPage() {
   const contractMap = new Map(contracts.map((c) => [c.id, c]))
 
   const contractsForPerson = selectedPersonId
-    ? contracts.filter((c) => c.person_id === selectedPersonId && c.package_id != null)
+    ? contracts.filter(
+        (c) =>
+          c.person_id === selectedPersonId &&
+          c.package_id != null &&
+          contractAllowsManualPayment(c)
+      )
     : []
 
   const handleAddPayment = async () => {
@@ -62,6 +67,10 @@ export default function PaymentsPage() {
     const contract = contractMap.get(selectedContractId)
     if (!contract?.package_id) {
       alert('Selected contract has no package')
+      return
+    }
+    if (!contractAllowsManualPayment(contract)) {
+      alert('Record payment is only for organization-billed contracts.')
       return
     }
 
@@ -126,13 +135,13 @@ export default function PaymentsPage() {
           className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Payment
+          Record payment
         </Button>
       </div>
 
       {showAddForm && (
         <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Add New Payment</h2>
+          <h2 className="text-xl font-semibold mb-4">Record organization payment</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-400">Client *</label>

@@ -33,10 +33,9 @@ export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promis
 }
 
 /**
- * Calculate close rate based on prospect sessions
- * Close rate = (completed sessions with converted == true) / (completed prospect sessions) * 100
- * Only considers completed prospect sessions
- * Optionally filtered by date range
+ * Close rate from sessions.converted (consult attribution), not people.converted_at.
+ * Conversion itself happens when a package is assigned. Wire this flag later
+ * if we want to know which session closed them.
  */
 export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number> {
   const prospectSessions = await fetchProspectSessions(dateRange)

@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export type CheckinFieldType = 'text' | 'long_text' | 'number' | 'scale' | 'yes_no'
+export type CheckinFormPurpose = 'intake' | 'checkin' | 'habit' | 'other'
 export type CheckinAssignmentStatus = 'assigned' | 'completed'
 
 export type CheckinAssignmentField = {
@@ -27,6 +28,7 @@ export type CheckinFormAssignment = {
   form_id: string | null
   name: string
   description: string | null
+  purpose: CheckinFormPurpose
   assigned_date: string
   status: CheckinAssignmentStatus
   completed_at: string | null
@@ -41,6 +43,7 @@ function mapAssignment(row: CheckinFormAssignment): CheckinFormAssignment {
   return {
     ...row,
     status: row.status === 'completed' ? 'completed' : 'assigned',
+    purpose: row.purpose ?? 'checkin',
   }
 }
 

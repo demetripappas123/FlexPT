@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import { Session, SessionType, SessionStatus } from '../fetches/fetchsessions'
+import { Session, SessionType, SessionStatus, SessionMissed } from '../fetches/fetchsessions'
 
 export interface SessionFormData {
   id?: string
@@ -13,6 +13,7 @@ export interface SessionFormData {
   end_time?: string | null // Actual time when session finished
   converted?: boolean
   status?: SessionStatus
+  missed?: SessionMissed
 }
 
 export interface SessionExerciseFormData {
@@ -21,6 +22,11 @@ export interface SessionExerciseFormData {
   exercise_id: string // UUID
   position: number
   notes?: string | null
+  prescribed_sets?: string | null
+  prescribed_reps?: string | null
+  prescribed_weight?: string | null
+  prescribed_rpe?: string | null
+  prescribed_rir?: string | null
 }
 
 export interface ExerciseSetFormData {
@@ -31,6 +37,10 @@ export interface ExerciseSetFormData {
   reps?: string | null // numrange in PostgreSQL format
   rir?: string | null // numrange in PostgreSQL format
   rpe?: string | null // numrange in PostgreSQL format
+  prescribed_weight?: string | null
+  prescribed_reps?: string | null
+  prescribed_rir?: string | null
+  prescribed_rpe?: string | null
   notes?: string | null
   completed?: boolean
 }
@@ -69,6 +79,9 @@ export async function upsertSession(session: SessionFormData): Promise<Session> 
   }
   if (session.status !== undefined) {
     sessionData.status = session.status
+  }
+  if (session.missed !== undefined) {
+    sessionData.missed = session.missed
   }
 
   if (session.id) {
@@ -115,6 +128,11 @@ export async function upsertSessionExercise(
     position: exercise.position,
     notes: exercise.notes ?? null,
   }
+  if (exercise.prescribed_sets !== undefined) exerciseData.prescribed_sets = exercise.prescribed_sets
+  if (exercise.prescribed_reps !== undefined) exerciseData.prescribed_reps = exercise.prescribed_reps
+  if (exercise.prescribed_weight !== undefined) exerciseData.prescribed_weight = exercise.prescribed_weight
+  if (exercise.prescribed_rpe !== undefined) exerciseData.prescribed_rpe = exercise.prescribed_rpe
+  if (exercise.prescribed_rir !== undefined) exerciseData.prescribed_rir = exercise.prescribed_rir
 
   if (exercise.id) {
     // Update existing exercise
@@ -162,6 +180,10 @@ export async function upsertExerciseSet(set: ExerciseSetFormData): Promise<any> 
     notes: set.notes ?? null,
     completed: set.completed ?? false,
   }
+  if (set.prescribed_weight !== undefined) setData.prescribed_weight = set.prescribed_weight
+  if (set.prescribed_reps !== undefined) setData.prescribed_reps = set.prescribed_reps
+  if (set.prescribed_rir !== undefined) setData.prescribed_rir = set.prescribed_rir
+  if (set.prescribed_rpe !== undefined) setData.prescribed_rpe = set.prescribed_rpe
 
   if (set.id) {
     // Update existing set
@@ -256,6 +278,11 @@ export async function upsertWorkoutExercises(
       exercise_id: exercise.exercise_id,
       position: index,
       notes: exercise.notes ?? null,
+      prescribed_sets: exercise.prescribed_sets,
+      prescribed_reps: exercise.prescribed_reps,
+      prescribed_weight: exercise.prescribed_weight,
+      prescribed_rpe: exercise.prescribed_rpe,
+      prescribed_rir: exercise.prescribed_rir,
     })
   })
 
@@ -408,6 +435,10 @@ export async function upsertExerciseSets(
       reps: set.reps ?? null,
       rir: set.rir ?? null,
       rpe: set.rpe ?? null,
+      prescribed_weight: set.prescribed_weight,
+      prescribed_reps: set.prescribed_reps,
+      prescribed_rir: set.prescribed_rir,
+      prescribed_rpe: set.prescribed_rpe,
       notes: set.notes ?? null,
       completed: set.completed ?? false,
     })

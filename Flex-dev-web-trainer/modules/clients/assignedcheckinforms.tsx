@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { CheckinFormAssignment } from '@/supabase/fetches/fetchcheckinformassignments'
+import { CHECKIN_FORM_PURPOSE_LABEL } from '@/supabase/fetches/fetchcheckinforms'
 import { deleteCheckinFormAssignment } from '@/supabase/upserts/upsertcheckinformassignment'
 import { assignmentCompletedThisWeek } from '@/supabase/utils/checkinWeek'
 import { Button } from '@/components/ui/button'
@@ -96,6 +97,7 @@ export default function AssignedCheckinForms({
               <div className="min-w-0">
                 <p className="font-medium text-foreground truncate">{assignment.name}</p>
                 <p className="text-xs text-muted-foreground">
+                  {CHECKIN_FORM_PURPOSE_LABEL[assignment.purpose ?? 'checkin']} ·{' '}
                   {formatDate(assignment.assigned_date)} ·{' '}
                   <span
                     className={

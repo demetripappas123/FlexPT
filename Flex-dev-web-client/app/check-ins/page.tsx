@@ -91,7 +91,12 @@ function CheckInsList() {
               <div>
                 <p className="font-medium text-stone-900">{assignment.name}</p>
                 <p className="text-xs text-stone-500">
-                  {formatDate(assignment.assigned_date)} ·{' '}
+                  {assignment.purpose === 'intake'
+                    ? 'Intake'
+                    : assignment.purpose === 'habit'
+                      ? 'Habit'
+                      : 'Check-in'}{' '}
+                  · {formatDate(assignment.assigned_date)} ·{' '}
                   {assignment.status === 'completed' ? 'Completed' : 'Due'}
                 </p>
               </div>

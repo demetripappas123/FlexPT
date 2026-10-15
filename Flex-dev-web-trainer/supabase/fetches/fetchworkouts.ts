@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { WorkoutDelivery } from '../utils/workoutDelivery'
 
 export interface Workout {
   id: string
@@ -7,6 +8,10 @@ export interface Workout {
   person_id: string
   completed: boolean
   workout_date: string | null
+  assignment_id?: string | null
+  week_number?: number | null
+  day_name?: string | null
+  delivery?: WorkoutDelivery
 }
 
 /**

@@ -1,5 +1,5 @@
 import { supabase } from '@/src/api/supabase'
-import { CheckinFieldType } from '@/src/api/fetches/fetchcheckinforms'
+import { CheckinFieldType, CheckinFormPurpose } from '@/src/api/fetches/fetchcheckinforms'
 
 export type CheckinAssignmentStatus = 'assigned' | 'completed'
 
@@ -27,10 +27,12 @@ export type CheckinFormAssignment = {
   form_id: string | null
   name: string
   description: string | null
+  purpose: CheckinFormPurpose
   assigned_date: string
   status: CheckinAssignmentStatus
   completed_at: string | null
   completed_by: string | null
+  program_assignment_id?: string | null
   created_at?: string
   updated_at?: string
   fields?: CheckinAssignmentField[]
@@ -41,6 +43,7 @@ function mapAssignment(row: CheckinFormAssignment): CheckinFormAssignment {
   return {
     ...row,
     status: row.status === 'completed' ? 'completed' : 'assigned',
+    purpose: row.purpose ?? 'checkin',
   }
 }
 

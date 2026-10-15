@@ -10,6 +10,7 @@ export interface CreateSessionData {
   person_package_id?: string | null
   converted?: boolean
   status?: SessionStatus
+  workout_id?: string | null
 }
 
 /**
@@ -36,6 +37,9 @@ export async function createSession(sessionData: CreateSessionData): Promise<Ses
   }
   if (sessionData.end_time !== undefined && sessionData.end_time !== null) {
     data.end_time = sessionData.end_time
+  }
+  if (sessionData.workout_id !== undefined && sessionData.workout_id !== null) {
+    data.workout_id = sessionData.workout_id
   }
 
   const { data: createdSession, error } = await supabase

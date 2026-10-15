@@ -9,6 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import type { EventInput, DateSelectArg } from '@fullcalendar/core'
 import { useRouter } from 'next/navigation'
 import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
+import { suggestMissedSessions } from '@/supabase/utils/sessionMissed'
 import { fetchClients } from '@/supabase/fetches/fetchpeople'
 import { fetchProspects } from '@/supabase/fetches/fetchpeople'
 import { useTheme } from '@/context/themecontext'
@@ -25,11 +26,12 @@ export default function Calendar() {
 
     const loadSessions = async () => {
       // Batch fetch all data in parallel
-      const [sessions, clients, prospects] = await Promise.all([
+      const [rawSessions, clients, prospects] = await Promise.all([
         fetchSessions(user.id),
         fetchClients(user.id),
         fetchProspects(user.id),
       ])
+      const sessions = await suggestMissedSessions(rawSessions)
       
       // Create a map for quick lookup
       const clientMap = new Map(clients.map(c => [c.id, c.name]))
@@ -53,13 +55,17 @@ export default function Calendar() {
             
             return {
               id: s.id,
-              title: personName, // Display person's name as the header
+              title: s.missed === 'suggested' ? `${personName} (looks missed)` : personName,
               start: s.start_time!,
               end: s.end_time || new Date(
                 new Date(s.start_time!).getTime() + 60 * 60000 // Default 60 minutes if no end_time
               ).toISOString(),
+              backgroundColor: s.missed === 'suggested' ? '#e6b450' : undefined,
+              borderColor: s.missed === 'suggested' ? '#e6b450' : undefined,
+              textColor: s.missed === 'suggested' ? '#0c0d10' : undefined,
               extendedProps: {
-                sessionType: s.type, // Store session type in extended props if needed for tooltips/details
+                sessionType: s.type,
+                missed: s.missed,
               },
             }
           })

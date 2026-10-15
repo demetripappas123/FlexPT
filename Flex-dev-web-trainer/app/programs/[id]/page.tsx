@@ -9,7 +9,7 @@ import DeleteWeekDialog from '@/modules/programs/deleteweek'
 import DeleteDayDialog from '@/modules/programs/deleteday'
 import { TrashIcon } from '@heroicons/react/24/solid'
 import { Plus, ChevronRight, ChevronLeft } from 'lucide-react'
-import { addDay, updateDay } from '@/supabase/upserts/upsertday'
+import { addDay, updateDay, updateDayDelivery } from '@/supabase/upserts/upsertday'
 import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { fetchDayExercises, DayExerciseWithName } from '@/supabase/fetches/fetchdayexercises'
@@ -110,7 +110,7 @@ export default function ProgramPage() {
   }
 
   // Submit a new day with exercises OR update an existing day
-  const handleAddDaySubmit = async (payload: { dayName: string; exercises: any[]; dayId?: string }) => {
+  const handleAddDaySubmit = async (payload: { dayName: string; exercises: any[]; dayId?: string; delivery: 'session' | 'solo' }) => {
     const isEditMode = !!payload.dayId
 
     try {
@@ -121,7 +121,7 @@ export default function ProgramPage() {
         if (!payload.dayId) return
 
         // 1. Update the day name
-        const updatedDay = await updateDay(payload.dayId, payload.dayName)
+        const updatedDay = await updateDay(payload.dayId, payload.dayName, payload.delivery)
         if (!updatedDay) {
           throw new Error('Failed to update day')
         }
@@ -131,7 +131,7 @@ export default function ProgramPage() {
         if (!activeWeekId) return
 
         // 1. Create the day and get its ID
-        const newDay = await addDay(activeWeekId, payload.dayName)
+        const newDay = await addDay(activeWeekId, payload.dayName, payload.delivery)
         if (!newDay) {
           throw new Error('Failed to create day')
         }
@@ -252,7 +252,11 @@ export default function ProgramPage() {
                   {week.days.map(day => (
                     <div
                       key={day.id}
-                      className="p-3 border border-border rounded-md bg-background min-w-[200px] relative"
+                      className={`p-3 border rounded-md bg-background min-w-[200px] relative ${
+                        day.delivery === 'session'
+                          ? 'border-violet-500/50 border-l-4 border-l-violet-500'
+                          : 'border-border border-l-4 border-l-slate-400'
+                      }`}
                     >
                       <div className="absolute top-2 right-2 flex gap-2">
                         <button
@@ -270,7 +274,23 @@ export default function ProgramPage() {
                           <TrashIcon className="w-4 h-4 text-destructive hover:text-destructive/80 cursor-pointer" />
                         </DeleteDayDialog>
                       </div>
-                      <div className="font-semibold text-foreground mb-2">{day.name}</div>
+                      <div className="font-semibold text-foreground mb-1 pr-12">{day.name}</div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const next = day.delivery === 'session' ? 'solo' : 'session'
+                          await updateDayDelivery(day.id, next)
+                          refreshWeeks()
+                        }}
+                        className={`mb-2 px-2 py-0.5 text-[11px] rounded border cursor-pointer ${
+                          day.delivery === 'session'
+                            ? 'bg-violet-600/20 text-violet-300 border-violet-500/50'
+                            : 'bg-slate-600/20 text-slate-300 border-slate-500/50'
+                        }`}
+                        title="Toggle session vs solo"
+                      >
+                        {day.delivery === 'session' ? 'Session' : 'Solo'}
+                      </button>
                       {dayExercises[day.id] && dayExercises[day.id].length > 0 ? (
                         <div className="space-y-1">
                           {dayExercises[day.id].map((exercise, idx) => (
@@ -335,6 +355,7 @@ export default function ProgramPage() {
                   onSubmit={handleAddDaySubmit}
                   dayId={day.id}
                   initialDayName={day.name}
+                  initialDelivery={day.delivery === 'session' ? 'session' : 'solo'}
                 />
               ))}
             </div>

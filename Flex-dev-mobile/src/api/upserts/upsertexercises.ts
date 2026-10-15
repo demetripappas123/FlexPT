@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/src/api/supabase'
 import { deleteDayExercises } from '@/src/api/deletions/deletedayexercises'
 

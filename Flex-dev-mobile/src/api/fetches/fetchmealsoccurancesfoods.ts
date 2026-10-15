@@ -3,10 +3,14 @@ import { supabase } from '@/src/api/supabase'
 export type MealsOccurancesFood = {
   id: string
   meal_id: string
-  food_id: string | null // uuid, references foods.id
+  food_id: string | null // uuid, references foods.id (eaten)
   food_name: string | null
   amount: number | null
   unit: string | null
+  prescribed_food_id?: string | null
+  prescribed_food_name?: string | null
+  prescribed_amount?: number | null
+  prescribed_unit?: string | null
   created_at: string
 }
 

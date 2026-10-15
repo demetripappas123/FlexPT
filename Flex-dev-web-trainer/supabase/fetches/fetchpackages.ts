@@ -4,6 +4,13 @@ import { supabase } from '../supabaseClient'
  * packages — billing template. Copied onto a contract at assign time.
  * Instance fields (person, start, renewal, status) live on contracts only.
  */
+export type PaymentCollector = 'flex' | 'organization'
+
+export const PAYMENT_COLLECTOR_LABEL: Record<PaymentCollector, string> = {
+  flex: 'FlexPT',
+  organization: 'Organization',
+}
+
 export interface Package {
   id: string
   name: string | null
@@ -15,6 +22,7 @@ export interface Package {
   trainer_id: string | null
   bill_cycle_length_weeks: number | null
   until_cancelled: boolean | null
+  payment_collector: PaymentCollector
   created_at?: string | null
   updated_at?: string | null
 }

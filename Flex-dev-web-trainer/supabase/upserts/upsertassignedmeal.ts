@@ -1,5 +1,6 @@
 import { supabase } from '@/supabase/supabaseClient'
 import { AssignedMeal, AssignedMealStatus } from '@/supabase/fetches/fetchassignedmeals'
+import { fillEatenFromPrescription } from '@/supabase/upserts/upsertmealsoccurancesfood'
 
 export type AssignedMealInput = {
   id?: string
@@ -9,6 +10,7 @@ export type AssignedMealInput = {
   status?: AssignedMealStatus
   name?: string | null
   trainer_id?: string | null
+  program_assignment_id?: string | null
 }
 
 export async function upsertAssignedMeal(assignedMeal: AssignedMealInput): Promise<AssignedMeal | null> {
@@ -36,6 +38,9 @@ export async function upsertAssignedMeal(assignedMeal: AssignedMealInput): Promi
     if (assignedMeal.trainer_id !== undefined) {
       mealData.trainer_id = assignedMeal.trainer_id
     }
+    if (assignedMeal.program_assignment_id !== undefined) {
+      mealData.program_assignment_id = assignedMeal.program_assignment_id
+    }
 
     if (assignedMeal.id) {
       const { data, error } = await supabase
@@ -46,6 +51,9 @@ export async function upsertAssignedMeal(assignedMeal: AssignedMealInput): Promi
         .single()
 
       if (error) throw error
+      if (data.status === 'completed') {
+        await fillEatenFromPrescription(data.id)
+      }
       return data as AssignedMeal
     }
 

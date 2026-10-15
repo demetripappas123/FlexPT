@@ -19,6 +19,10 @@ import {
   ClientRosterRow,
   ClientRosterStatus,
   ClientRosterFlag,
+  ClientRosterFilter,
+  CLIENT_ROSTER_FILTERS,
+  matchesClientRosterFilter,
+  countClientRosterFilters,
 } from '@/supabase/fetches/fetchclientroster'
 
 export interface DisplayClientsRef {
@@ -28,7 +32,7 @@ export interface DisplayClientsRef {
 const STATUS_LABEL: Record<ClientRosterStatus, string> = {
   active: 'Active',
   paused: 'Paused',
-  trial: 'Trial',
+  trial: 'Onboarding',
   ending: 'Ending',
   inactive: 'Inactive',
 }
@@ -120,27 +124,22 @@ function lastPaymentLabel(row: ClientRosterRow): string {
   return 'No payment'
 }
 
-function mockCompliance(id: string, status: ClientRosterStatus): number {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 33 + id.charCodeAt(i)) >>> 0
-  const ranges: Record<ClientRosterStatus, [number, number]> = {
-    active: [72, 98],
-    trial: [62, 92],
-    ending: [48, 82],
-    paused: [28, 68],
-    inactive: [12, 48],
-  }
-  const [min, max] = ranges[status]
-  return min + (hash % (max - min + 1))
-}
-
 function complianceColor(percent: number): string {
   if (percent >= 80) return '#22c55e'
   if (percent >= 60) return '#eab308'
   return '#ef4444'
 }
 
-function ComplianceRing({ value }: { value: number }) {
+function ComplianceRing({ value, label }: { value: number | null; label: string }) {
+  if (value == null) {
+    return (
+      <div className="relative w-10 h-10" title={label}>
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">
+          —
+        </span>
+      </div>
+    )
+  }
   const size = 40
   const stroke = 3.5
   const radius = (size - stroke) / 2
@@ -148,7 +147,7 @@ function ComplianceRing({ value }: { value: number }) {
   const offset = circumference * (1 - Math.min(100, Math.max(0, value)) / 100)
 
   return (
-    <div className="relative w-10 h-10" title={`Placeholder compliance ${value}%`}>
+    <div className="relative w-10 h-10" title={label}>
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -184,6 +183,7 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<ClientRosterFilter>('all')
   const [schedulePersonId, setSchedulePersonId] = useState<string | null>(null)
 
   const loadClients = async () => {
@@ -210,18 +210,21 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  const filterCounts = useMemo(() => countClientRosterFilters(rows), [rows])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const list = q
-      ? rows.filter((row) => {
-          return (
-            row.name.toLowerCase().includes(q) ||
-            (row.number || '').toLowerCase().includes(q) ||
-            (row.coachName || '').toLowerCase().includes(q) ||
-            STATUS_LABEL[row.status].toLowerCase().includes(q)
-          )
-        })
-      : rows
+    const list = rows.filter((row) => {
+      if (!matchesClientRosterFilter(row, filter)) return false
+      if (!q) return true
+      return (
+        row.name.toLowerCase().includes(q) ||
+        (row.number || '').toLowerCase().includes(q) ||
+        (row.coachName || '').toLowerCase().includes(q) ||
+        STATUS_LABEL[row.status].toLowerCase().includes(q) ||
+        (row.inOnboarding && 'onboarding'.includes(q))
+      )
+    })
     return [...list].sort((a, b) => {
       const order: Record<ClientRosterStatus, number> = {
         active: 0,
@@ -234,18 +237,42 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
       if (byStatus !== 0) return byStatus
       return a.name.localeCompare(b.name)
     })
-  }, [rows, query])
+  }, [rows, query, filter])
 
   if (error) return <div className="text-destructive">{error}</div>
 
   return (
     <div className="space-y-3">
-      <Input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search clients…"
-        className="max-w-xs bg-card"
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search clients…"
+          className="max-w-xs bg-card"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {CLIENT_ROSTER_FILTERS.map((item) => {
+            const selected = filter === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                  selected
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                {item.label}
+                <span className={selected ? 'ml-1 opacity-80' : 'ml-1 text-muted-foreground'}>
+                  {filterCounts[item.id]}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
@@ -274,7 +301,7 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
-                    {query ? 'No matching clients.' : 'No clients yet.'}
+                    {query || filter !== 'all' ? 'No matching clients.' : 'No clients yet.'}
                   </td>
                 </tr>
               ) : (
@@ -311,8 +338,12 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
                       </div>
                     </td>
                     <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_CLASS[row.status]}`}>
-                        {STATUS_LABEL[row.status]}
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          row.inOnboarding ? STATUS_CLASS.trial : STATUS_CLASS[row.status]
+                        }`}
+                      >
+                        {row.inOnboarding ? 'Onboarding' : STATUS_LABEL[row.status]}
                       </span>
                     </td>
                     <td className="px-4 py-3 align-top text-foreground whitespace-nowrap">
@@ -361,7 +392,7 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
                       <p className="text-xs text-muted-foreground mt-0.5">{row.renewalLabel}</p>
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      <ComplianceRing value={mockCompliance(row.id, row.status)} />
+                      <ComplianceRing value={row.compliance.percent} label={row.complianceLabel} />
                     </td>
                     <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>

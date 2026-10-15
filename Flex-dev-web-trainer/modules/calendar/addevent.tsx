@@ -12,6 +12,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog'
 import { createSession } from '@/supabase/upserts/createsession'
+import { updateWorkout } from '@/supabase/upserts/upsertworkout'
 import { useRouter } from 'next/navigation'
 import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
 import { fetchProspects, Prospect } from '@/supabase/fetches/fetchpeople'
@@ -25,6 +26,8 @@ type AddEventDialogProps = {
   initialPersonId?: string | null
   initialType?: SessionType
   initialPersonPackageId?: string | null
+  initialWorkoutId?: string | null
+  initialStartDate?: string | null
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -34,6 +37,8 @@ export default function AddEventDialog({
   initialPersonId = null,
   initialType = 'Client Session',
   initialPersonPackageId = null,
+  initialWorkoutId = null,
+  initialStartDate = null,
   trigger,
   open: openProp,
   onOpenChange,
@@ -109,9 +114,13 @@ export default function AddEventDialog({
   useEffect(() => {
     if (initialPersonId !== null && initialPersonId !== undefined) {
       setPersonId(initialPersonId)
-      setType(initialType)
+      setType(initialWorkoutId ? 'Client Session' : initialType)
     }
-  }, [initialPersonId, initialType])
+  }, [initialPersonId, initialType, initialWorkoutId])
+
+  useEffect(() => {
+    if (initialStartDate) setStartDate(initialStartDate)
+  }, [initialStartDate])
 
   useEffect(() => {
     if (initialPersonPackageId) setSelectedPersonPackageId(initialPersonPackageId)
@@ -249,7 +258,12 @@ export default function AddEventDialog({
         person_package_id: selectedPersonPackageId,
         converted: false,
         status: 'pending',
+        workout_id: initialWorkoutId,
       })
+
+      if (initialWorkoutId) {
+        await updateWorkout(initialWorkoutId, { delivery: 'session' })
+      }
 
       router.push(`/events/${newSession.id}`)
 
@@ -284,9 +298,11 @@ export default function AddEventDialog({
       )}
       <DialogContent className="sm:max-w-lg bg-card text-card-foreground border border-border">
         <DialogHeader>
-          <DialogTitle>Add New Event</DialogTitle>
+          <DialogTitle>{initialWorkoutId ? 'Schedule session for workout' : 'Add New Event'}</DialogTitle>
           <DialogDescription>
-            Fill out the information to create a new session or event.
+            {initialWorkoutId
+              ? 'This books a coached session onto the assigned program workout. Remaining session units are required.'
+              : 'Fill out the information to create a new session or event.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -294,12 +310,13 @@ export default function AddEventDialog({
           {/* Type */}
           <select
             value={type}
+            disabled={Boolean(initialWorkoutId)}
             onChange={(e) => {
               setType(e.target.value as SessionType)
               setPersonId(null) // Reset person selection when type changes
               setSelectedPersonPackageId(null) // Reset package selection
             }}
-            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-70"
           >
             <option>Client Session</option>
             <option>Prospect Session</option>
@@ -312,11 +329,12 @@ export default function AddEventDialog({
             <div className="flex items-center gap-2">
               <select
                 value={personId ?? ''}
+                disabled={Boolean(initialWorkoutId)}
                 onChange={(e) => {
                   setPersonId(e.target.value)
                   setSelectedPersonPackageId(null) // Reset package when person changes
                 }}
-                className="flex-1 px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="flex-1 px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-70"
                 required
               >
                 <option value="">Select {isClientType ? 'Client' : 'Prospect'}</option>

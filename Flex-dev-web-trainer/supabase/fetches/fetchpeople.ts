@@ -1,5 +1,7 @@
 import { supabase } from '../supabaseClient'
 
+export type PersonOnboardingStatus = 'not_started' | 'in_progress' | 'complete'
+
 export interface Person {
   id: string
   name: string
@@ -8,12 +10,18 @@ export interface Person {
   package_id?: string | null
   created_at: string
   converted_at: string | null
+  onboarding_status?: PersonOnboardingStatus | null
   notes?: string | null
   lead_source?: string | null
   trainer_id?: string | null
   email?: string | null
   username?: string | null
   auth_user_id?: string | null
+  stripe_customer_id?: string | null
+}
+
+export function personIsInOnboarding(status: PersonOnboardingStatus | null | undefined): boolean {
+  return status === 'not_started' || status === 'in_progress'
 }
 
 // Re-export types for backward compatibility

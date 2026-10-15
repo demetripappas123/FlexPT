@@ -1,8 +1,10 @@
 import { supabase } from '@/supabase/supabaseClient'
+import { WorkoutDelivery } from '@/supabase/utils/workoutDelivery'
 
 export type Day = {
   id: string
   name: string
+  delivery?: WorkoutDelivery
   // Add sessions or workouts later if needed
   sessions?: any[]
 }
@@ -86,6 +88,7 @@ export async function fetchWeeksServer(programId: string, trainerId?: string | n
         daysByWeekId.get(weekId)!.push({
           id: day.id,
           name: day.name,
+          delivery: day.delivery === 'session' ? 'session' : 'solo',
           sessions: day.sessions
         })
       })

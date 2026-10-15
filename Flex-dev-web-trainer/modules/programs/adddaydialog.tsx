@@ -15,6 +15,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
+import { WorkoutDelivery } from "@/supabase/utils/workoutDelivery";
 
 type LocalDayExercise = {
   exercise_id?: string;
@@ -31,16 +32,18 @@ type LocalDayExercise = {
 type AddDayDialogProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: { dayName: string; exercises: LocalDayExercise[]; dayId?: string }) => void;
+  onSubmit: (payload: { dayName: string; exercises: LocalDayExercise[]; dayId?: string; delivery: WorkoutDelivery }) => void;
   weekId: string;
   onAdded: () => void | Promise<void>;
   // Edit mode props
   dayId?: string; // If provided, dialog is in edit mode
   initialDayName?: string;
+  initialDelivery?: WorkoutDelivery;
 };
 
-export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDayName }: AddDayDialogProps) {
+export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDayName, initialDelivery }: AddDayDialogProps) {
   const [dayName, setDayName] = useState("");
+  const [delivery, setDelivery] = useState<WorkoutDelivery>(initialDelivery ?? "solo");
   const [exercises, setExercises] = useState<LocalDayExercise[]>([]);
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([]);
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({});
@@ -52,6 +55,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
       if (dayId && initialDayName) {
         // Edit mode: load existing data
         setDayName(initialDayName);
+        setDelivery(initialDelivery === "session" ? "session" : "solo");
         
         // Fetch existing exercises for this day
         const loadExistingExercises = async () => {
@@ -76,12 +80,13 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
       } else {
         // Add mode: reset all form state
         setDayName("");
+        setDelivery("solo");
         setExercises([]);
       }
       setOpenCombobox({});
       setSearchValue({});
     }
-  }, [open, dayId, initialDayName]);
+  }, [open, dayId, initialDayName, initialDelivery]);
 
   // Fetch exercise library when dialog opens
   useEffect(() => {
@@ -129,6 +134,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
       dayName,
       exercises,
       dayId: dayId, // Include dayId if in edit mode
+      delivery,
     });
     onClose();
   };
@@ -151,6 +157,37 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
             placeholder="e.g. Push Day, Legs, Upper, etc."
             className="bg-input text-foreground border-border placeholder-muted-foreground"
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1 text-foreground">Delivery</label>
+          <div className="flex rounded-md border border-border overflow-hidden w-fit text-sm">
+            <button
+              type="button"
+              onClick={() => setDelivery("session")}
+              className={`px-3 py-1.5 cursor-pointer ${
+                delivery === "session"
+                  ? "bg-violet-600 text-white"
+                  : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Session
+            </button>
+            <button
+              type="button"
+              onClick={() => setDelivery("solo")}
+              className={`px-3 py-1.5 cursor-pointer ${
+                delivery === "solo"
+                  ? "bg-slate-500 text-white"
+                  : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Solo
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Session days are meant to be coached. Solo days are completed without a booking.
+          </p>
         </div>
 
         {/* Exercises */}

@@ -18,6 +18,13 @@ import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { formatRangeDisplay, parseRangeInput } from '@/supabase/utils/rangeparse'
+import {
+  markSessionCancelled,
+  markSessionMissed,
+  sessionLooksMissed,
+  sessionMissedLabel,
+  suggestMissedSessions,
+} from '@/supabase/utils/sessionMissed'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +39,7 @@ export default function EventPage() {
   const [editWorkoutOpen, setEditWorkoutOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [missedDialogOpen, setMissedDialogOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
 
   useEffect(() => {
@@ -45,7 +53,8 @@ export default function EventPage() {
         // Fetch the session directly by ID
         const sessionWithExercises = await fetchSessionWithExercises(id)
         if (sessionWithExercises) {
-          setSession(sessionWithExercises)
+          const [synced] = await suggestMissedSessions([sessionWithExercises])
+          setSession({ ...sessionWithExercises, missed: synced.missed })
         } else {
           setSession(null)
         }
@@ -110,11 +119,12 @@ export default function EventPage() {
           <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
           {isCancelled && (
             <span className={`px-3 py-1 rounded-md text-sm font-semibold ${
-              session.status === 'canceled_with_charge'
+              session.missed === 'missed' || session.status === 'canceled_with_charge'
                 ? 'bg-destructive/20 text-destructive border border-destructive/50' 
                 : 'bg-primary/20 text-primary border border-primary/50'
             }`}>
-              {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
+              {sessionMissedLabel(session) ??
+                (session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)')}
             </span>
           )}
         </div>
@@ -149,7 +159,9 @@ export default function EventPage() {
             ) : session.status === 'completed' ? (
               <span className="capitalize text-green-500">Completed</span>
             ) : (
-              <span className="capitalize text-muted-foreground">Pending</span>
+              <span className="capitalize text-muted-foreground">
+                {sessionMissedLabel(session) ?? 'Pending'}
+              </span>
             )}
           </p>
         </div>
@@ -229,6 +241,7 @@ export default function EventPage() {
                   workout_id: session.workout_id,
                   converted: session.converted,
                   status: 'in_progress', // Keep status as in_progress
+                  missed: null,
                 })
                 // Reload session data
                 const sessionWithExercises = await fetchSessionWithExercises(id)
@@ -255,18 +268,7 @@ export default function EventPage() {
             onSessionCancel={async (withCharge: boolean) => {
               // Cancel the session with or without charge
               try {
-                await upsertSession({
-                  id: session.id,
-                  type: session.type,
-                  person_id: session.person_id,
-                  trainer_id: session.trainer_id,
-                  start_time: session.start_time,
-                  started_at: session.started_at,
-                  end_time: session.end_time,
-                  workout_id: session.workout_id,
-                  converted: session.converted,
-                  status: withCharge ? 'canceled_with_charge' : 'canceled_no_charge',
-                })
+                await markSessionCancelled(session, withCharge)
                 // Reload session data
                 const sessionWithExercises = await fetchSessionWithExercises(id)
                 if (sessionWithExercises) {
@@ -288,13 +290,9 @@ export default function EventPage() {
     <main className="p-8 text-foreground bg-background min-h-screen">
       <div className="flex items-center gap-4 mb-4">
         <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
-        {session.cancelled && (
-          <span className={`px-3 py-1 rounded-md text-sm font-semibold ${
-            session.cancelled_with_charge 
-              ? 'bg-destructive/20 text-destructive border border-destructive/50' 
-              : 'bg-primary/20 text-primary border border-primary/50'
-          }`}>
-            {session.cancelled_with_charge ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
+        {(session.missed === 'suggested' || sessionLooksMissed(session)) && (
+          <span className="px-3 py-1 rounded-md text-sm font-semibold bg-amber-500/20 text-amber-500 border border-amber-500/50">
+            Looks missed
           </span>
         )}
       </div>
@@ -311,6 +309,8 @@ export default function EventPage() {
             }`}>
               {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
             </span>
+          ) : session.missed === 'suggested' || sessionLooksMissed(session) ? (
+            <span className="text-amber-500">Looks missed</span>
           ) : (
             <span className="capitalize text-yellow-500">Pending</span>
           )}
@@ -320,7 +320,7 @@ export default function EventPage() {
       {!isCancelled && !session.workout_id && (
         <div className="mt-8 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Assign a workout now, then start the session around the scheduled time to open the live workout UI.
+            Attach a workout from this client's assigned program, or design one on the fly. Then start the session around the scheduled time.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
@@ -446,6 +446,7 @@ export default function EventPage() {
                       workout_id: session.workout_id,
                       converted: session.converted,
                       status: 'in_progress', // Set status to in_progress when Start Session button is clicked
+                      missed: null,
                     })
                     // Reload session data to reflect the status change and trigger in_progress view
                     const sessionWithExercises = await fetchSessionWithExercises(id)
@@ -462,7 +463,12 @@ export default function EventPage() {
               Start Session
             </Button>
           )}
-          {/* Cancel Session button - only visible if not already cancelled */}
+          <Button
+            onClick={() => setMissedDialogOpen(true)}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-black cursor-pointer"
+          >
+            Mark as missed
+          </Button>
           <Button
             onClick={() => setCancelDialogOpen(true)}
             className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
@@ -680,18 +686,7 @@ export default function EventPage() {
                 try {
                   if (!session) return
                   // Mark session as cancelled with charge (update status)
-                  await upsertSession({
-                    id: session.id,
-                    type: session.type,
-                    person_id: session.person_id,
-                    trainer_id: session.trainer_id,
-                    start_time: session.start_time,
-                    started_at: session.started_at,
-                    end_time: session.end_time,
-                    workout_id: session.workout_id,
-                    converted: session.converted,
-                    status: 'canceled_with_charge',
-                  })
+                  await markSessionCancelled(session, true)
                   
                   setCancelDialogOpen(false)
                   alert('Session canceled with charge')
@@ -715,18 +710,7 @@ export default function EventPage() {
                 try {
                   if (!session) return
                   // Mark session as cancelled without charge (update status)
-                  await upsertSession({
-                    id: session.id,
-                    type: session.type,
-                    person_id: session.person_id,
-                    trainer_id: session.trainer_id,
-                    start_time: session.start_time,
-                    started_at: session.started_at,
-                    end_time: session.end_time,
-                    workout_id: session.workout_id,
-                    converted: session.converted,
-                    status: 'canceled_no_charge',
-                  })
+                  await markSessionCancelled(session, false)
                   
                   setCancelDialogOpen(false)
                   alert('Session canceled without charge')
@@ -750,6 +734,65 @@ export default function EventPage() {
               type="button"
               variant="outline"
               onClick={() => setCancelDialogOpen(false)}
+              className="cursor-pointer bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+      <Dialog open={missedDialogOpen} onOpenChange={setMissedDialogOpen}>
+        <DialogContent className="bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Mark as missed</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              No-show. Charge burns a package unit; no charge does not.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              type="button"
+              onClick={async () => {
+                try {
+                  if (!session) return
+                  await markSessionMissed(session, true)
+                  setMissedDialogOpen(false)
+                  const sessionWithExercises = await fetchSessionWithExercises(session.id)
+                  if (sessionWithExercises) setSession(sessionWithExercises)
+                } catch (error) {
+                  console.error('Error marking session missed:', error)
+                  alert('Error marking session missed. Please try again.')
+                }
+              }}
+              className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
+            >
+              Missed with charge
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                try {
+                  if (!session) return
+                  await markSessionMissed(session, false)
+                  setMissedDialogOpen(false)
+                  const sessionWithExercises = await fetchSessionWithExercises(session.id)
+                  if (sessionWithExercises) setSession(sessionWithExercises)
+                } catch (error) {
+                  console.error('Error marking session missed:', error)
+                  alert('Error marking session missed. Please try again.')
+                }
+              }}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+            >
+              Missed without charge
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMissedDialogOpen(false)}
               className="cursor-pointer bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
             >
               Close

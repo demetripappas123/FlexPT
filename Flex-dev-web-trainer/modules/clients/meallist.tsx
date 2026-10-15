@@ -7,6 +7,7 @@ import { fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
 import { upsertMealsOccurancesFood } from '@/supabase/upserts/upsertmealsoccurancesfood'
 import { Check, Undo2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { formatAssignedMealFood } from '@/supabase/utils/formatWorkload'
 
 type MealListProps = {
   assignedMeals: AssignedMeal[]
@@ -151,7 +152,10 @@ export default function MealList({ assignedMeals, personId, onMealUpdate }: Meal
                     key={food.id || idx}
                     amount={food.amount}
                     unit={food.unit}
-                    name={food.food_name}
+                    name={food.food_name || food.prescribed_food_name}
+                    assigned={formatAssignedMealFood(food)}
+                    prescribedAmount={food.prescribed_amount}
+                    prescribedUnit={food.prescribed_unit}
                     saving={savingFoodId === food.id}
                     onSave={(amount, unit) =>
                       savePortion(
@@ -159,8 +163,8 @@ export default function MealList({ assignedMeals, personId, onMealUpdate }: Meal
                         food.id,
                         amount,
                         unit,
-                        food.food_name,
-                        food.food_id
+                        food.food_name || food.prescribed_food_name || null,
+                        food.food_id || food.prescribed_food_id || null
                       )
                     }
                   />
@@ -181,46 +185,57 @@ function MealFoodRow({
   amount,
   unit,
   name,
+  assigned,
+  prescribedAmount,
+  prescribedUnit,
   saving,
   onSave,
 }: {
   amount: number | null
   unit: string | null
   name: string | null
+  assigned: string | null
+  prescribedAmount?: number | null
+  prescribedUnit?: string | null
   saving: boolean
   onSave: (amount: number | null, unit: string | null) => void
 }) {
   const [localAmount, setLocalAmount] = useState(amount != null ? String(amount) : '')
-  const [localUnit, setLocalUnit] = useState(unit || 'g')
+  const [localUnit, setLocalUnit] = useState(unit || '')
 
   return (
-    <div className="bg-muted rounded-md p-2 text-sm flex flex-wrap items-center gap-2">
-      <span className="font-medium text-foreground flex-1 min-w-[120px]">
-        {name || 'Unknown Food'}
-      </span>
-      <Input
-        type="number"
-        min="0"
-        step="1"
-        value={localAmount}
-        onChange={(e) => setLocalAmount(e.target.value)}
-        className="bg-input text-foreground border-border w-20 h-8"
-      />
-      <Input
-        value={localUnit}
-        onChange={(e) => setLocalUnit(e.target.value)}
-        className="bg-input text-foreground border-border w-20 h-8"
-      />
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() =>
-          onSave(localAmount === '' ? null : Number(localAmount), localUnit || null)
-        }
-        className="text-xs text-primary hover:underline cursor-pointer disabled:opacity-50"
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </button>
+    <div className="bg-muted rounded-md p-2 text-sm space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-foreground flex-1 min-w-[120px]">
+          {name || 'Unknown Food'}
+        </span>
+        <Input
+          type="number"
+          min="0"
+          step="1"
+          value={localAmount}
+          onChange={(e) => setLocalAmount(e.target.value)}
+          placeholder={prescribedAmount != null ? String(prescribedAmount) : 'Eaten'}
+          className="bg-input text-foreground border-border w-20 h-8"
+        />
+        <Input
+          value={localUnit}
+          onChange={(e) => setLocalUnit(e.target.value)}
+          placeholder={prescribedUnit || 'g'}
+          className="bg-input text-foreground border-border w-20 h-8"
+        />
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() =>
+            onSave(localAmount === '' ? null : Number(localAmount), localUnit || null)
+          }
+          className="text-xs text-primary hover:underline cursor-pointer disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Log eaten'}
+        </button>
+      </div>
+      {assigned && <p className="text-xs text-muted-foreground">Assigned: {assigned}</p>}
     </div>
   )
 }

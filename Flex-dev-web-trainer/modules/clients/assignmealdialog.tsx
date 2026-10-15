@@ -265,10 +265,14 @@ export default function AssignMealDialogContent({
           const selectedFood = foodLibrary.find(f => f.id === food.food_id!)
           await upsertMealsOccurancesFood({
             meal_id: assignedMeal.id,
-            food_id: selectedFood?.id ?? null,
-            food_name: selectedFood?.description || food.food_name || null,
-            amount: food.amount!,
-            unit: food.unit!,
+            prescribed_food_id: selectedFood?.id ?? null,
+            prescribed_food_name: selectedFood?.description || food.food_name || null,
+            prescribed_amount: food.amount!,
+            prescribed_unit: food.unit!,
+            food_id: null,
+            food_name: null,
+            amount: null,
+            unit: null,
           })
         }
 
@@ -314,10 +318,14 @@ export default function AssignMealDialogContent({
         for (const food of sourceFoods) {
           await upsertMealsOccurancesFood({
             meal_id: assignedMeal.id,
-            food_id: food.food_id,
-            food_name: food.food_name,
-            amount: food.amount,
-            unit: food.unit,
+            prescribed_food_id: food.food_id,
+            prescribed_food_name: food.food_name,
+            prescribed_amount: food.amount,
+            prescribed_unit: food.unit,
+            food_id: null,
+            food_name: null,
+            amount: null,
+            unit: null,
           })
         }
       }

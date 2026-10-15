@@ -21,11 +21,14 @@ import EditWorkout from '@/modules/sessions/editworkout'
 import AddEventDialog from '@/modules/calendar/addevent'
 import WorkoutCalendar from '@/modules/clients/workoutcalendar'
 import AssignProgramWorkout from '@/modules/clients/assignprogramworkout'
+import AssignProgramDialog from '@/modules/clients/assignprogramdialog'
+import ClientProgramView from '@/modules/clients/clientprogramview'
+import { fetchProgramAssignments, ProgramAssignment } from '@/supabase/fetches/fetchprogramassignments'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import ClientLogin from '@/modules/clients/clientlogin'
-import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check, MessageSquare } from 'lucide-react'
+import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check, MessageSquare, Layers } from 'lucide-react'
 import { AssignedMeal, fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
 import AssignMealDialogContent from '@/modules/clients/assignmealdialog'
 import AssignCheckinFormDialog from '@/modules/clients/assigncheckinformdialog'
@@ -53,6 +56,13 @@ import { fetchContractsByPersonId } from '@/supabase/fetches/fetchcontracts'
 import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import { fetchPersonWorkoutsWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { updateWorkout } from '@/supabase/upserts/upsertworkout'
+import { fetchPersonPackagesWithRemaining } from '@/supabase/fetches/fetchpersonpackageswithremaining'
+import { workoutDeliveryCardClass } from '@/supabase/utils/workoutDelivery'
+import {
+  ScheduleSessionButton,
+  WorkoutDeliveryBadge,
+  WorkoutDeliveryToggle,
+} from '@/modules/clients/workoutsessioncontrols'
 import {
   Command,
   CommandInput,
@@ -73,7 +83,7 @@ export default function PersonPage() {
   const [workouts, setWorkouts] = useState<WorkoutWithData[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress' | 'packages' | 'payments' | 'contracts'>('progress')
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress' | 'packages' | 'payments' | 'contracts' | 'program'>('progress')
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
@@ -81,6 +91,11 @@ export default function PersonPage() {
   const [workoutView, setWorkoutView] = useState<'list' | 'calendar'>('calendar')
   const [assignProgramWorkoutOpen, setAssignProgramWorkoutOpen] = useState(false)
   const [assignProgramWorkoutDate, setAssignProgramWorkoutDate] = useState<string | undefined>(undefined)
+  const [assignProgramOpen, setAssignProgramOpen] = useState(false)
+  const [programAssignments, setProgramAssignments] = useState<ProgramAssignment[] | null>(null)
+  const [programAssignmentsLoading, setProgramAssignmentsLoading] = useState(false)
+  const [sessionUnitsRemaining, setSessionUnitsRemaining] = useState(0)
+  const [scheduleSessionWorkout, setScheduleSessionWorkout] = useState<WorkoutWithData | null>(null)
   
   // Add workout form state
   const [newWorkoutDate, setNewWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0])
@@ -191,7 +206,10 @@ export default function PersonPage() {
   // Load assigned meals when meals sub-tab is activated
   useEffect(() => {
     const loadAssignedMeals = async () => {
-      if (activeTab !== 'nutrition' || nutritionSubTab !== 'meals' || !person) return
+      if (
+        (activeTab !== 'nutrition' || nutritionSubTab !== 'meals') &&
+        activeTab !== 'program'
+      ) return
       const isClient = person.converted_at !== null && person.converted_at !== undefined
       if (!isClient) return
       // If already loaded, don't reload
@@ -215,7 +233,8 @@ export default function PersonPage() {
 
   useEffect(() => {
     const loadCheckinAssignments = async () => {
-      if (activeTab !== 'progress' || !person) return
+      if (activeTab !== 'progress' && activeTab !== 'program') return
+      if (!person) return
 
       setCheckinAssignmentsLoading(true)
       try {
@@ -231,6 +250,50 @@ export default function PersonPage() {
 
     loadCheckinAssignments()
   }, [activeTab, person?.id])
+
+  useEffect(() => {
+    const loadProgramAssignments = async () => {
+      if (activeTab !== 'program' || !person) return
+      setProgramAssignmentsLoading(true)
+      try {
+        const [rows, workoutsWithData, meals, forms] = await Promise.all([
+          fetchProgramAssignments(person.id),
+          fetchPersonWorkoutsWithData(person.id),
+          fetchAssignedMeals(person.id),
+          fetchCheckinFormAssignments(person.id),
+        ])
+        setProgramAssignments(rows)
+        setWorkouts(workoutsWithData)
+        setAssignedMeals(meals)
+        setCheckinAssignments(forms)
+      } catch (err) {
+        console.error('Error loading program assignments:', err)
+        setProgramAssignments([])
+      } finally {
+        setProgramAssignmentsLoading(false)
+      }
+    }
+
+    loadProgramAssignments()
+  }, [activeTab, person?.id])
+
+  useEffect(() => {
+    const loadSessionUnits = async () => {
+      if (!person) return
+      try {
+        const rows = await fetchPersonPackagesWithRemaining(person.id, {
+          serviceType: 'SESSION',
+          onlyWithRemaining: true,
+          paidOnly: true,
+        })
+        setSessionUnitsRemaining(rows.reduce((sum, row) => sum + (row.remaining_units || 0), 0))
+      } catch (err) {
+        console.error('Error loading remaining session units:', err)
+        setSessionUnitsRemaining(0)
+      }
+    }
+    loadSessionUnits()
+  }, [person?.id, activeTab])
 
   // Load packages data when packages tab is activated
   useEffect(() => {
@@ -515,6 +578,19 @@ export default function PersonPage() {
           <Activity className="h-5 w-5" />
           Progress
         </button>
+        {isClient && (
+          <button
+            onClick={() => setActiveTab('program')}
+            className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+              activeTab === 'program'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            } cursor-pointer`}
+          >
+            <Layers className="h-5 w-5" />
+            Program
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('nutrition')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
@@ -588,6 +664,34 @@ export default function PersonPage() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'program' && isClient && (
+        <ClientProgramView
+          personId={person.id}
+          assignments={programAssignments ?? []}
+          workouts={workouts}
+          meals={assignedMeals ?? []}
+          checkins={checkinAssignments ?? []}
+          loading={programAssignmentsLoading}
+          onAssignClick={() => setAssignProgramOpen(true)}
+          onReload={async () => {
+            const [rows, workoutsWithData, meals, forms] = await Promise.all([
+              fetchProgramAssignments(person.id),
+              fetchPersonWorkoutsWithData(person.id),
+              fetchAssignedMeals(person.id),
+              fetchCheckinFormAssignments(person.id),
+            ])
+            setProgramAssignments(rows)
+            setWorkouts(workoutsWithData)
+            setAssignedMeals(meals)
+            setCheckinAssignments(forms)
+          }}
+          onWorkoutClick={(workout) => setEditingWorkoutId(workout.id)}
+          onFillCheckin={(assignment) => setFillCheckinId(assignment.id)}
+          sessionUnitsRemaining={sessionUnitsRemaining}
+          onScheduleSession={setScheduleSessionWorkout}
+        />
+      )}
+
       {activeTab === 'nutrition' && (
         <>
           {nutritionLoading ? (
@@ -1147,18 +1251,15 @@ export default function PersonPage() {
                     .map((workout) => (
                     <div
                       key={workout.id}
-                      className={`bg-background border rounded-lg p-4 ${
-                        workout.completed 
-                          ? 'border-border' 
-                          : 'border-orange-500/50 bg-orange-500/5'
-                      }`}
+                      className={`bg-background border rounded-lg p-4 ${workoutDeliveryCardClass(workout)}`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="text-lg font-semibold text-foreground">
-                              Workout
+                              {workout.day_name || 'Workout'}
                             </h3>
+                            <WorkoutDeliveryBadge workout={workout} />
                             {!workout.completed && (
                               <span className="px-2 py-1 bg-orange-600/20 text-orange-400 text-xs rounded border border-orange-600/50">
                                 Incomplete
@@ -1167,11 +1268,6 @@ export default function PersonPage() {
                             {workout.completed && (
                               <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded border border-green-600/50">
                                 Completed
-                              </span>
-                            )}
-                            {workout.session && (
-                              <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded border border-blue-600/50">
-                                From Session: {workout.session.type}
                               </span>
                             )}
                           </div>
@@ -1191,6 +1287,20 @@ export default function PersonPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          <WorkoutDeliveryToggle
+                            workout={workout}
+                            onChanged={async () => {
+                              if (person) {
+                                const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
+                                setWorkouts(workoutsWithData)
+                              }
+                            }}
+                          />
+                          <ScheduleSessionButton
+                            workout={workout}
+                            remainingUnits={sessionUnitsRemaining}
+                            onSchedule={setScheduleSessionWorkout}
+                          />
                           {!workout.completed && (
                             <button
                               onClick={async () => {
@@ -1506,6 +1616,43 @@ export default function PersonPage() {
           </div>
         )
       })()}
+
+      {person && (
+        <AssignProgramDialog
+          open={assignProgramOpen}
+          onOpenChange={setAssignProgramOpen}
+          personId={person.id}
+          onAssigned={async () => {
+            const [rows, workoutsWithData, meals, forms] = await Promise.all([
+              fetchProgramAssignments(person.id),
+              fetchPersonWorkoutsWithData(person.id),
+              fetchAssignedMeals(person.id),
+              fetchCheckinFormAssignments(person.id),
+            ])
+            setProgramAssignments(rows)
+            setWorkouts(workoutsWithData)
+            setAssignedMeals(meals)
+            setCheckinAssignments(forms)
+          }}
+        />
+      )}
+
+      {person && (
+        <AddEventDialog
+          open={Boolean(scheduleSessionWorkout)}
+          onOpenChange={(open) => {
+            if (!open) setScheduleSessionWorkout(null)
+          }}
+          initialPersonId={person.id}
+          initialType="Client Session"
+          initialWorkoutId={scheduleSessionWorkout?.id ?? null}
+          initialStartDate={
+            scheduleSessionWorkout?.workout_date
+              ? scheduleSessionWorkout.workout_date.slice(0, 10)
+              : null
+          }
+        />
+      )}
 
       {/* Assign Program Workout Dialog */}
       {person && (

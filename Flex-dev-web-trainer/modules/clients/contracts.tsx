@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Contract, ContractStatus } from '@/supabase/fetches/fetchcontracts'
-import { Package } from '@/supabase/fetches/fetchpackages'
+import { Package, PaymentCollector, PAYMENT_COLLECTOR_LABEL } from '@/supabase/fetches/fetchpackages'
 import { fetchPackageServices, PackageService } from '@/supabase/fetches/fetchpackageservices'
 import { fetchServices, Service } from '@/supabase/fetches/fetchservices'
 import { upsertContract } from '@/supabase/upserts/upsertcontract'
@@ -91,6 +91,7 @@ const emptyForm = {
   billCycleWeeks: '',
   suggestedSessionsPerWeek: null as SuggestedSessionsPerWeek | null,
   status: 'active' as ContractStatus,
+  paymentCollector: 'flex' as PaymentCollector,
 }
 
 export default function Contracts({
@@ -163,6 +164,7 @@ export default function Contracts({
       billCycleWeeks: pkg.bill_cycle_length_weeks != null ? String(pkg.bill_cycle_length_weeks) : '',
       suggestedSessionsPerWeek: isPif ? cadenceFromPackage(pkg.id) ?? 2 : null,
       renewalDate,
+      paymentCollector: pkg.payment_collector ?? 'flex',
     }))
   }
 
@@ -201,6 +203,7 @@ export default function Contracts({
           2
         : null,
       status: (contract.status ?? 'active') as ContractStatus,
+      paymentCollector: contract.payment_collector ?? 'flex',
     })
     setError(null)
     setShowForm(true)
@@ -291,6 +294,7 @@ export default function Contracts({
           until_cancelled: form.untilCancelled,
           renewal_date: form.untilCancelled ? null : form.renewalDate,
           suggested_sessions_per_week: form.pif ? form.suggestedSessionsPerWeek : null,
+          payment_collector: form.paymentCollector,
         })
       } else if (selectedPackage) {
         await upsertContract({
@@ -306,6 +310,7 @@ export default function Contracts({
           pif_cost: form.pif ? pifCost : selectedPackage.pif_cost,
           renewal_date: form.untilCancelled ? null : form.renewalDate,
           suggested_sessions_per_week: form.pif ? form.suggestedSessionsPerWeek : null,
+          payment_collector: form.paymentCollector,
         })
       }
       resetForm()
@@ -527,6 +532,23 @@ export default function Contracts({
               </div>
             )}
 
+            <div>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Who collects payment</label>
+              <select
+                value={form.paymentCollector}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, paymentCollector: e.target.value as PaymentCollector }))
+                }
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              >
+                <option value="flex">{PAYMENT_COLLECTOR_LABEL.flex}</option>
+                <option value="organization">{PAYMENT_COLLECTOR_LABEL.organization}</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Organization still needs a recorded payment in FlexPT each cycle so sessions refill.
+              </p>
+            </div>
+
             {editingId && (
               <div>
                 <label className="block text-sm font-medium mb-1 text-muted-foreground">Status</label>
@@ -632,6 +654,10 @@ export default function Contracts({
                 </div>
                   <div>
                     <span className="font-semibold text-foreground">Billing:</span> {billingLabel}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-foreground">Collector:</span>{' '}
+                    {PAYMENT_COLLECTOR_LABEL[contract.payment_collector ?? 'flex']}
                   </div>
                 <div>
                     <span className="font-semibold text-foreground">Start:</span>{' '}

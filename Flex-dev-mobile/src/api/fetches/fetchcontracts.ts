@@ -1,5 +1,7 @@
 import { supabase } from '../supabase'
+import { PaymentCollector } from './fetchpackages'
 
+export type { PaymentCollector }
 export type ContractStatus = 'active' | 'frozen' | 'cancelled'
 
 /**
@@ -21,8 +23,21 @@ export interface Contract {
   package_id: string | null
   renewal_date: string | null
   suggested_sessions_per_week?: number | null
+  payment_collector: PaymentCollector
   created_at?: string | null
   updated_at?: string | null
+}
+
+export function contractAllowsManualPayment(
+  contract: Pick<Contract, 'payment_collector'> | null | undefined
+): boolean {
+  return contract?.payment_collector === 'organization'
+}
+
+export function contractCollectsThroughFlex(
+  contract: Pick<Contract, 'payment_collector'> | null | undefined
+): boolean {
+  return contract?.payment_collector !== 'organization'
 }
 
 /**

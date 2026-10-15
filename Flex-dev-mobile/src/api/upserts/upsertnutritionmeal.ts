@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/src/api/supabase'
 import { NutritionMeal, MealFood } from '@/src/api/fetches/fetchnutritionweeks'
 

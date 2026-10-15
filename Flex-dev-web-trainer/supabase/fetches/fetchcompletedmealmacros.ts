@@ -21,7 +21,7 @@ function dateKey(value: string | null | undefined): string | null {
 
 /**
  * Completed meal occurrences for a client, summed by assigned_date.
- * Scaled from food_nutrients (per 100 g) using the occurrence portion.
+ * Scaled from food_nutrients (per 100 g) using the **eaten** portion (`amount` / `unit`), not prescribed.
  */
 export async function fetchCompletedMealMacrosByDate(
   personId: string

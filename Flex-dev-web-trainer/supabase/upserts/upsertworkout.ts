@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { Workout } from '../fetches/fetchworkouts'
+import { WorkoutDelivery } from '../utils/workoutDelivery'
 
 export interface WorkoutFormData {
   id?: string
@@ -7,6 +8,10 @@ export interface WorkoutFormData {
   person_id: string
   completed?: boolean
   workout_date?: string | null
+  assignment_id?: string | null
+  week_number?: number | null
+  day_name?: string | null
+  delivery?: WorkoutDelivery
 }
 
 /**
@@ -33,6 +38,18 @@ export async function upsertWorkout(workout: WorkoutFormData): Promise<Workout> 
   // Handle workout_date field
   if (workout.workout_date !== undefined) {
     workoutData.workout_date = workout.workout_date
+  }
+  if (workout.assignment_id !== undefined) {
+    workoutData.assignment_id = workout.assignment_id
+  }
+  if (workout.week_number !== undefined) {
+    workoutData.week_number = workout.week_number
+  }
+  if (workout.day_name !== undefined) {
+    workoutData.day_name = workout.day_name
+  }
+  if (workout.delivery !== undefined) {
+    workoutData.delivery = workout.delivery
   }
 
   if (workout.id) {

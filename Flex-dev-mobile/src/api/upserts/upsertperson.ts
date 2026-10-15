@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { PersonOnboardingStatus } from '../fetches/fetchpeople'
 
 export interface PersonFormData {
   id?: string
@@ -11,6 +12,7 @@ export interface PersonFormData {
   package_id?: string | null
   created_at?: string
   converted_at?: string | null
+  onboarding_status?: PersonOnboardingStatus | null
   email?: string | null
   username?: string | null
 }
@@ -69,17 +71,27 @@ export async function upsertPerson(person: Partial<PersonFormData>, options?: {
   if (options?.asClient === true) {
     // Set as client (converted_at = current time)
     fullPerson.converted_at = person.converted_at ?? new Date().toISOString()
+    if (person.onboarding_status !== undefined) {
+      fullPerson.onboarding_status = person.onboarding_status
+    } else if (isNewPerson) {
+      fullPerson.onboarding_status = 'in_progress'
+    }
   } else if (options?.asClient === false) {
     // Set as prospect (converted_at = null)
     fullPerson.converted_at = null
+    fullPerson.onboarding_status = null
   } else {
     // Preserve existing or use provided value
     if (isNewPerson) {
       // For new persons, default to prospect (null) unless explicitly provided
       fullPerson.converted_at = person.converted_at ?? null
+      fullPerson.onboarding_status = person.onboarding_status ?? null
     } else if (person.converted_at !== undefined) {
       // Only update if explicitly provided
       fullPerson.converted_at = person.converted_at
+    }
+    if (!isNewPerson && person.onboarding_status !== undefined) {
+      fullPerson.onboarding_status = person.onboarding_status
     }
   }
 

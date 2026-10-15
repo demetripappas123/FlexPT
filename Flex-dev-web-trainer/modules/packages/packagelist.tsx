@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package } from '@/supabase/fetches/fetchpackages'
+import { Package, PaymentCollector, PAYMENT_COLLECTOR_LABEL } from '@/supabase/fetches/fetchpackages'
 import { upsertPackage, PackageFormData } from '@/supabase/upserts/upsertpackage'
 import { fetchServices, Service } from '@/supabase/fetches/fetchservices'
 import { fetchPackageServicesByPackageId } from '@/supabase/fetches/fetchpackageservices'
@@ -34,6 +34,7 @@ type PackageListFormData = {
   until_cancelled?: boolean
   pif?: boolean
   pif_cost?: number | null
+  payment_collector?: PaymentCollector
 }
 
 type BillingType = 'PIF' | 'recurring' | 'recurring_with_down_payment'
@@ -145,6 +146,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
     default_cost_per_cycle: 0,
     is_active: true,
     notes: null,
+    payment_collector: 'flex',
   })
 
   // Fetch services when step 2 is reached
@@ -510,6 +512,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         until_cancelled: pkg.until_cancelled ?? false,
         pif: isPif,
         pif_cost: pkg.pif_cost,
+        payment_collector: pkg.payment_collector ?? 'flex',
       })
       setCustomCostPerCycle(
         isPif
@@ -677,6 +680,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         pif_cost: billingType === 'PIF' ? finalCost : null,
         cost_per_bill_cycle: billingType === 'PIF' ? null : finalCost,
         trainer_id: user?.id ?? null,
+        payment_collector: formData.payment_collector ?? 'flex',
         ...(editingPackage?.id ? { id: editingPackage.id } : {}),
       }
       console.log('Creating package with data:', packageData)
@@ -910,6 +914,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
         default_cost_per_cycle: 0,
         is_active: true,
         notes: null,
+        payment_collector: 'flex',
       })
       setCustomCostPerCycle(null)
       setEditingPackage(null)
@@ -980,6 +985,7 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                   <th className="text-left font-medium text-foreground px-4 py-3">Until cancelled</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Length</th>
                   <th className="text-left font-medium text-foreground px-4 py-3">Cycle cost</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Collector</th>
                   <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
                 </tr>
               </thead>
@@ -1015,6 +1021,9 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                         : pkg.cost_per_bill_cycle != null
                           ? `$${Number(pkg.cost_per_bill_cycle).toFixed(2)}`
                           : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-foreground">
+                      {PAYMENT_COLLECTOR_LABEL[pkg.payment_collector ?? 'flex']}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
@@ -1163,6 +1172,23 @@ export default function PackageList({ packages, onPackagesUpdate }: PackageListP
                       ℹ️ Note: Any amount of down payments can be accepted for recurring packages when assigned to a client.
                     </p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-foreground">Who collects payment</label>
+                  <select
+                    value={formData.payment_collector ?? 'flex'}
+                    onChange={(e) =>
+                      setFormData({ ...formData, payment_collector: e.target.value as PaymentCollector })
+                    }
+                    className="w-full bg-input text-foreground border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="flex">{PAYMENT_COLLECTOR_LABEL.flex}</option>
+                    <option value="organization">{PAYMENT_COLLECTOR_LABEL.organization}</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    FlexPT = charge or record in this app. Organization = gym/company collects; still record the cycle in FlexPT to grant sessions.
+                  </p>
                 </div>
 
                 {/* Billing Cycle Duration - Only show if not PIF */}

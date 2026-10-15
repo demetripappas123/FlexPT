@@ -1,5 +1,5 @@
 import { supabase } from '../supabase'
-import { fetchClients } from './fetchpeople'
+import { fetchClients, personIsInOnboarding } from './fetchpeople'
 import { fetchSessions, Session } from './fetchsessions'
 import { fetchContracts, Contract } from './fetchcontracts'
 import { fetchPersonPackages } from './fetchpersonpackages'
@@ -7,6 +7,12 @@ import { attachRemainingToPersonPackages } from './fetchpersonpackageswithremain
 import { fetchPayments, Payment, isPaymentCountedForRevenue } from './fetchpayments'
 import { fetchServices } from './fetchservices'
 import { assignmentCompletedThisWeek } from '../utils/checkinWeek'
+import {
+  calculateComplianceScore,
+  complianceWindow,
+  complianceTooltip,
+  ComplianceScore,
+} from '../utils/complianceScore'
 
 export type ClientRosterStatus = 'active' | 'paused' | 'trial' | 'ending' | 'inactive'
 export type ClientRosterFlag =
@@ -15,6 +21,19 @@ export type ClientRosterFlag =
   | 'expiring'
   | 'unscheduled'
   | 'checkin_overdue'
+export type ClientRosterFilter = 'all' | 'active' | 'onboarding' | 'renewal' | 'at_risk' | 'inactive'
+
+export const ONBOARDING_WINDOW_DAYS = 21
+export const AT_RISK_COMPLIANCE_THRESHOLD = 60
+
+export const CLIENT_ROSTER_FILTERS: { id: ClientRosterFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'active', label: 'Active' },
+  { id: 'onboarding', label: 'Active in onboarding' },
+  { id: 'renewal', label: 'Up for renewal' },
+  { id: 'at_risk', label: 'At risk' },
+  { id: 'inactive', label: 'Inactive' },
+]
 
 export type ClientRosterRow = {
   id: string
@@ -38,6 +57,46 @@ export type ClientRosterRow = {
   renewalDate: string | null
   renewalLabel: string
   flags: ClientRosterFlag[]
+  compliance: ComplianceScore
+  complianceLabel: string
+  inOnboarding: boolean
+  atRisk: boolean
+}
+
+export function matchesClientRosterFilter(row: ClientRosterRow, filter: ClientRosterFilter): boolean {
+  switch (filter) {
+    case 'all':
+      return true
+    case 'active':
+      return row.status === 'active' && !row.inOnboarding
+    case 'onboarding':
+      return row.inOnboarding
+    case 'renewal':
+      return row.status === 'ending' || row.flags.includes('expiring')
+    case 'at_risk':
+      return row.atRisk
+    case 'inactive':
+      return row.status === 'inactive' || row.status === 'paused'
+  }
+}
+
+export function countClientRosterFilters(rows: ClientRosterRow[]): Record<ClientRosterFilter, number> {
+  const counts: Record<ClientRosterFilter, number> = {
+    all: rows.length,
+    active: 0,
+    onboarding: 0,
+    renewal: 0,
+    at_risk: 0,
+    inactive: 0,
+  }
+  for (const row of rows) {
+    if (matchesClientRosterFilter(row, 'active')) counts.active += 1
+    if (matchesClientRosterFilter(row, 'onboarding')) counts.onboarding += 1
+    if (matchesClientRosterFilter(row, 'renewal')) counts.renewal += 1
+    if (matchesClientRosterFilter(row, 'at_risk')) counts.at_risk += 1
+    if (matchesClientRosterFilter(row, 'inactive')) counts.inactive += 1
+  }
+  return counts
 }
 
 type TrainerRow = { id: string; name: string | null }
@@ -59,6 +118,18 @@ type CheckinAssignmentRow = {
   status: string
   assigned_date: string | null
   completed_at: string | null
+  purpose?: string | null
+}
+type MealRow = {
+  person_id: string
+  status: string | null
+  assigned_date: string | null
+}
+type NutritionRow = {
+  client_id: string
+  entry_date: string | null
+  calories: number | null
+  extra_calories: number | null
 }
 
 function statusRank(status: ClientRosterStatus): number {
@@ -174,23 +245,43 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
   ])
 
   const clientIds = clients.map((client) => client.id)
-  const checkinsRes =
+  const window = complianceWindow()
+  const empty = { data: [] as never[], error: null }
+  const [checkinsRes, mealsRes, nutritionRes] =
     clientIds.length === 0
-      ? { data: [] as CheckinAssignmentRow[], error: null }
-      : await supabase
-          .from('checkin_form_assignments')
-          .select('person_id, status, assigned_date, completed_at')
-          .in('person_id', clientIds)
+      ? [empty, empty, empty]
+      : await Promise.all([
+          supabase
+            .from('checkin_form_assignments')
+            .select('person_id, status, assigned_date, completed_at, purpose')
+            .in('person_id', clientIds),
+          supabase
+            .from('meals_occurances')
+            .select('person_id, status, assigned_date')
+            .in('person_id', clientIds)
+            .gte('assigned_date', window.start)
+            .lte('assigned_date', window.end),
+          supabase
+            .from('nutrition_entries')
+            .select('client_id, entry_date, calories, extra_calories')
+            .in('client_id', clientIds)
+            .gte('entry_date', window.start)
+            .lte('entry_date', window.end),
+        ])
 
   if (trainersRes.error) console.error('Error fetching trainers:', trainersRes.error)
   if (workoutsRes.error) console.error('Error fetching workouts:', workoutsRes.error)
   if (tasksRes.error) console.error('Error fetching tasks:', tasksRes.error)
   if (checkinsRes.error) console.error('Error fetching check-in assignments:', checkinsRes.error)
+  if (mealsRes.error) console.error('Error fetching assigned meals:', mealsRes.error)
+  if (nutritionRes.error) console.error('Error fetching nutrition entries:', nutritionRes.error)
 
   const trainers = (trainersRes.data ?? []) as TrainerRow[]
   const workouts = (workoutsRes.data ?? []) as WorkoutRow[]
   const tasks = (tasksRes.data ?? []) as TaskRow[]
   const checkins = (checkinsRes.data ?? []) as CheckinAssignmentRow[]
+  const meals = (mealsRes.data ?? []) as MealRow[]
+  const nutritionDays = (nutritionRes.data ?? []) as NutritionRow[]
   const trainerNameById = new Map(trainers.map((t) => [t.id, t.name || null]))
 
   const packagesWithRemaining = await attachRemainingToPersonPackages(personPackages, services)
@@ -247,6 +338,20 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
     const list = checkinsByPerson.get(assignment.person_id) ?? []
     list.push(assignment)
     checkinsByPerson.set(assignment.person_id, list)
+  }
+
+  const mealsByPerson = new Map<string, MealRow[]>()
+  for (const meal of meals) {
+    const list = mealsByPerson.get(meal.person_id) ?? []
+    list.push(meal)
+    mealsByPerson.set(meal.person_id, list)
+  }
+
+  const nutritionByPerson = new Map<string, NutritionRow[]>()
+  for (const entry of nutritionDays) {
+    const list = nutritionByPerson.get(entry.client_id) ?? []
+    list.push(entry)
+    nutritionByPerson.set(entry.client_id, list)
   }
 
   const mapped = clients.map((client) => {
@@ -327,6 +432,44 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
     if (sessionsRemaining > 0 && !nextSession) flags.push('unscheduled')
     if (checkInOverdue) flags.push('checkin_overdue')
 
+    const compliance = calculateComplianceScore({
+      workouts: workoutsByPerson.get(client.id) ?? [],
+      sessions: sessionsByPerson.get(client.id) ?? [],
+      checkins: personCheckins,
+      habits: personTasks.filter((t) => t.kind === 'habit'),
+      meals: mealsByPerson.get(client.id) ?? [],
+      nutritionDays: nutritionByPerson.get(client.id) ?? [],
+      payments: personPayments,
+      overdueBills: nextBillPast && nextBillAt ? [{ due_date: nextBillAt }] : [],
+    }, now)
+
+    const converted = client.converted_at ? new Date(client.converted_at) : null
+    const daysSinceConvert =
+      converted && !Number.isNaN(converted.getTime())
+        ? (now.getTime() - converted.getTime()) / 86400000
+        : null
+    const hasIncompleteIntake = personCheckins.some(
+      (row) => row.purpose === 'intake' && row.status !== 'completed'
+    )
+    const derivedOnboarding =
+      contract?.status === 'active' &&
+      daysSinceConvert != null &&
+      daysSinceConvert <= ONBOARDING_WINDOW_DAYS &&
+      (!hasSucceededPayment || hasIncompleteIntake)
+    const inOnboarding =
+      client.onboarding_status != null
+        ? personIsInOnboarding(client.onboarding_status)
+        : derivedOnboarding
+    const atRisk =
+      status !== 'inactive' &&
+      status !== 'paused' &&
+      (
+        flags.includes('payment_failed') ||
+        flags.includes('past_due') ||
+        flags.includes('checkin_overdue') ||
+        (compliance.percent != null && compliance.percent < AT_RISK_COMPLIANCE_THRESHOLD)
+      )
+
     return {
       id: client.id,
       name: client.name,
@@ -351,6 +494,10 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
         (contract?.until_cancelled && !contract.pif ? nextBillCandidates[0] ?? null : null),
       renewalLabel: renewalLabel(contract),
       flags,
+      compliance,
+      complianceLabel: complianceTooltip(compliance),
+      inOnboarding,
+      atRisk,
     }
   })
 

@@ -13,6 +13,7 @@ import { deleteExerciseSet } from '@/supabase/deletions/deletesession'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
+import { formatAssignedLine } from '@/supabase/utils/formatWorkload'
 import {
   Command,
   CommandInput,
@@ -48,6 +49,11 @@ type TrackedExercise = {
   session_exercise_id?: string
   position: number
   notes: string | null
+  prescribed_sets?: string | null
+  prescribed_reps?: string | null
+  prescribed_weight?: string | null
+  prescribed_rpe?: string | null
+  prescribed_rir?: string | null
   sets: TrackedSet[]
 }
 
@@ -114,6 +120,11 @@ export default function StartSession({
       session_exercise_id: ex.id,
       position: ex.position,
       notes: ex.notes,
+      prescribed_sets: ex.prescribed_sets ?? null,
+      prescribed_reps: ex.prescribed_reps ?? null,
+      prescribed_weight: ex.prescribed_weight ?? null,
+      prescribed_rpe: ex.prescribed_rpe ?? null,
+      prescribed_rir: ex.prescribed_rir ?? null,
       sets: (ex.sets || []).map((set) => ({
         id: set.id,
         set_number: set.set_number,
@@ -139,6 +150,11 @@ export default function StartSession({
             return {
               ...ex,
               session_exercise_id: ex.session_exercise_id || dbEx?.session_exercise_id,
+              prescribed_sets: dbEx?.prescribed_sets ?? ex.prescribed_sets,
+              prescribed_reps: dbEx?.prescribed_reps ?? ex.prescribed_reps,
+              prescribed_weight: dbEx?.prescribed_weight ?? ex.prescribed_weight,
+              prescribed_rpe: dbEx?.prescribed_rpe ?? ex.prescribed_rpe,
+              prescribed_rir: dbEx?.prescribed_rir ?? ex.prescribed_rir,
               sets: (ex.sets ?? []).map((set) => {
                 const dbSet = set.id ? dbById.get(set.id) : undefined
                 if (dbSet?.completed) return { ...set, ...dbSet, completed: true }
@@ -693,6 +709,11 @@ export default function StartSession({
                       className="bg-input text-foreground border-border min-h-[60px]"
                     />
                   </div>
+                  {formatAssignedLine(exercise) && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Assigned: {formatAssignedLine(exercise)}
+                    </p>
+                  )}
                 </div>
 
               {/* Sets */}
@@ -746,7 +767,7 @@ export default function StartSession({
                           e.preventDefault()
                         }
                       }}
-                      placeholder="Weight"
+                      placeholder={formatRangeDisplay(exercise.prescribed_weight) || 'Weight'}
                       onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
                       className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
@@ -776,7 +797,7 @@ export default function StartSession({
                           e.preventDefault()
                         }
                       }}
-                      placeholder="Reps"
+                      placeholder={formatRangeDisplay(exercise.prescribed_reps) || 'Reps'}
                       onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
                       className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
@@ -806,7 +827,7 @@ export default function StartSession({
                           e.preventDefault()
                         }
                       }}
-                      placeholder="RIR"
+                      placeholder={formatRangeDisplay(exercise.prescribed_rir) || 'RIR'}
                       onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
                       className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
@@ -838,7 +859,7 @@ export default function StartSession({
                           e.preventDefault()
                         }
                       }}
-                      placeholder="RPE"
+                      placeholder={formatRangeDisplay(exercise.prescribed_rpe) || 'RPE'}
                       onBlur={() => flushCompletedSet(exerciseIndex, setIndex)}
                       className="bg-input text-foreground border-border text-xs h-9 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />

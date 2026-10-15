@@ -6,6 +6,7 @@ import { fetchDashboardMetricsProgressive } from '@/supabase/fetches/fetchdashbo
 import { fetchNewClientsThisMonth, fetchNewLeadsThisMonth, fetchSuccessfulPaymentsThisMonth, fetchLeadSources, fetchProspectsForScatter } from '@/supabase/fetches/fetchdashboardquickmetrics'
 import { fetchPeople } from '@/supabase/fetches/fetchpeople'
 import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
+import { suggestMissedSessions } from '@/supabase/utils/sessionMissed'
 import Link from 'next/link'
 import CloseRateChart from '@/modules/dashboard/closeratechart'
 import ShowRateChart from '@/modules/dashboard/showratechart'
@@ -140,7 +141,7 @@ export default function DashboardPage() {
       if (!user) return
       setLoadingSessions(true)
       try {
-        const sessions = await fetchSessions(user.id)
+        const sessions = await suggestMissedSessions(await fetchSessions(user.id))
         const now = new Date()
         const today = now.toDateString()
         
@@ -164,6 +165,12 @@ export default function DashboardPage() {
         // Get upcoming sessions (start_time in the future or today, not cancelled, not completed)
         // Include ALL in_progress sessions regardless of time window
         const upcoming = sessions.filter(session => {
+          if (session.missed === 'suggested') {
+            if (!session.start_time) return true
+            const ageMs = now.getTime() - new Date(session.start_time).getTime()
+            return ageMs <= 7 * 24 * 60 * 60 * 1000
+          }
+
           // Exclude cancelled sessions
           if (session.status === 'canceled_with_charge' || session.status === 'canceled_no_charge') {
             console.log('❌ Cancelled:', session.id, session.status)
@@ -271,6 +278,8 @@ export default function DashboardPage() {
             personName: session.person_id ? peopleMap.get(session.person_id) || 'Unknown' : 'Unknown'
           }))
           .sort((a, b) => {
+            const missedFirst = Number(b.missed === 'suggested') - Number(a.missed === 'suggested')
+            if (missedFirst !== 0) return missedFirst
             const timeA = a.start_time ? new Date(a.start_time).getTime() : 0
             const timeB = b.start_time ? new Date(b.start_time).getTime() : 0
             return timeA - timeB
@@ -447,8 +456,8 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
                           {session.personName || 'Unknown'}
                         </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {when.clock ?? when.relative}
+                        <p className={`text-[11px] truncate ${session.missed === 'suggested' ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                          {session.missed === 'suggested' ? 'Looks missed' : (when.clock ?? when.relative)}
                         </p>
                       </div>
                     </Link>

@@ -7,10 +7,7 @@ import { Input } from '@/components/ui/input'
 import { fetchPrograms } from '@/supabase/fetches/fetchprograms'
 import { Program } from '@/supabase/upserts/upsertprogram'
 import { fetchWeeks, Week, Day } from '@/supabase/fetches/fetchweek'
-import { fetchDayExercises } from '@/supabase/fetches/fetchdayexercises'
-import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
-import { upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
-import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
+import { copyProgramDayToWorkout } from '@/supabase/utils/copyProgramDayToWorkout'
 import { useAuth } from '@/context/authcontext'
 
 type AssignProgramWorkoutProps = {
@@ -106,115 +103,16 @@ export default function AssignProgramWorkout({
 
     try {
       setAssigning(true)
-
-      // Fetch exercises for the selected day
-      const dayExercises = await fetchDayExercises(selectedDayId, user?.id || null)
-
-      if (dayExercises.length === 0) {
-        alert('Selected day has no exercises. Please select a different day.')
-        return
-      }
-
-      // Create workout with day_id and workout_date
-      const workout = await upsertWorkout({
-        person_id: personId,
-        day_id: selectedDayId,
-        completed: false, // Assign as incomplete
-        workout_date: new Date(workoutDate).toISOString(),
+      const selectedDay = allDays.find((day) => day.id === selectedDayId)
+      await copyProgramDayToWorkout({
+        personId,
+        trainerId: user?.id || null,
+        dayId: selectedDayId,
+        workoutDate,
+        weekNumber: selectedDay?.weekNumber ?? null,
+        dayName: selectedDay?.name ?? null,
+        delivery: selectedDay?.delivery === 'session' ? 'session' : 'solo',
       })
-
-      // Create workout exercises from day exercises
-      const exerciseData = dayExercises.map((ex, index) => ({
-        exercise_id: ex.exercise_def_id,
-        position: index,
-        notes: ex.notes || null,
-      }))
-
-      const createdExercises = await upsertWorkoutExercises(workout.id, exerciseData)
-
-      // Create sets for each exercise based on the sets range from day exercise
-      for (let i = 0; i < dayExercises.length; i++) {
-        const dayExercise = dayExercises[i]
-        const createdExercise = createdExercises[i]
-
-        if (createdExercise && createdExercise.id) {
-          // Parse the sets range to determine number of sets
-          let numSets = 3 // Default to 3 sets if no range specified
-
-          if (dayExercise.sets) {
-            const formattedRange = formatRangeDisplay(dayExercise.sets)
-
-            if (formattedRange) {
-              if (formattedRange.includes('-')) {
-                const parts = formattedRange.split('-')
-                const upper = parseInt(parts[1]?.trim() || '', 10)
-                if (!isNaN(upper)) {
-                  numSets = upper
-                }
-              } else {
-                const num = parseInt(formattedRange.trim(), 10)
-                if (!isNaN(num)) {
-                  numSets = num
-                }
-              }
-            }
-          }
-
-          // Parse reps, rir, rpe, and weight ranges to get default values for sets
-          // Extract the lower bound from each range to use as the default value for all sets
-          // Each set needs individual values, not ranges
-          const getValueFromRange = (range: string | null | undefined): string | null => {
-            if (!range) return null
-            
-            // Format the range to get display format (e.g., "8" or "8-12")
-            const formatted = formatRangeDisplay(range)
-            if (!formatted) return null
-            
-            // If it's a range like "8-12", use the lower bound "8"
-            // If it's a single value like "8", use that
-            if (formatted.includes('-')) {
-              const lower = formatted.split('-')[0]?.trim()
-              // Convert single number to numrange format [x,x]
-              if (lower) {
-                const num = parseFloat(lower)
-                if (!isNaN(num)) {
-                  return `[${Math.round(num)},${Math.round(num)}]`
-                }
-              }
-            } else {
-              // Single value - convert to numrange format [x,x]
-              const num = parseFloat(formatted.trim())
-              if (!isNaN(num)) {
-                return `[${Math.round(num)},${Math.round(num)}]`
-              }
-            }
-            
-            return null
-          }
-
-          // Extract values from ranges - each set gets the lower bound as its value
-          const defaultWeight = getValueFromRange(dayExercise.weight_used)
-          const defaultReps = getValueFromRange(dayExercise.reps)
-          const defaultRIR = getValueFromRange(dayExercise.rir)
-          const defaultRPE = getValueFromRange(dayExercise.rpe)
-
-          // Create sets with individual values extracted from day exercise ranges
-          // Each set gets the same default value (lower bound of range, or single value)
-          const setData = Array.from({ length: numSets }, (_, index) => ({
-            set_number: index + 1,
-            weight: defaultWeight,
-            reps: defaultReps,
-            rir: defaultRIR,
-            rpe: defaultRPE,
-            notes: dayExercise.notes || null,
-          }))
-
-          // Create the sets
-          await upsertExerciseSets(createdExercise.id, setData)
-        }
-      }
-
-      console.log('Program workout assigned successfully!')
       onWorkoutAssigned()
       onOpenChange(false)
       

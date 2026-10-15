@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import { Contract, ContractStatus } from '../fetches/fetchcontracts'
-import { Package } from '../fetches/fetchpackages'
+import { Package, PaymentCollector } from '../fetches/fetchpackages'
 import { calculatePackageCycleCost } from '../utils/packageCycleCost'
 import { suggestedSessionsPerWeekForPackage } from '../utils/suggestedSessionsPerWeek'
 
@@ -24,6 +24,7 @@ export type ContractFormData =
       until_cancelled: boolean | null
       renewal_date?: string | null
       suggested_sessions_per_week?: number | null
+      payment_collector?: PaymentCollector
     }
   | {
       person_id: string
@@ -38,6 +39,7 @@ export type ContractFormData =
       pif_cost?: number | null
       renewal_date?: string | null
       suggested_sessions_per_week?: number | null
+      payment_collector?: PaymentCollector
     }
 
 /** Normalize to date-only YYYY-MM-DD */
@@ -74,6 +76,7 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       suggested_sessions_per_week: contractData.pif
         ? contractData.suggested_sessions_per_week ?? null
         : null,
+      payment_collector: contractData.payment_collector ?? 'flex',
     }
   } else if ('package' in contractData && contractData.package) {
     const pkg = contractData.package
@@ -114,6 +117,7 @@ export async function upsertContract(contractData: ContractFormData): Promise<Co
       until_cancelled: contractData.until_cancelled ?? pkg.until_cancelled ?? false,
       renewal_date: (contractData.until_cancelled ?? pkg.until_cancelled) ? null : renewalDate,
       suggested_sessions_per_week: suggestedSessions,
+      payment_collector: contractData.payment_collector ?? pkg.payment_collector ?? 'flex',
     }
   } else {
     throw new Error('Contract form data must include either id (for update) or package (for create)')

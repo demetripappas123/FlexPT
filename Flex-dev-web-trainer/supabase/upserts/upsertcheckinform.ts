@@ -1,11 +1,12 @@
 import { supabase } from '@/supabase/supabaseClient'
-import { CheckinForm, CheckinFormField, CheckinFieldType } from '@/supabase/fetches/fetchcheckinforms'
+import { CheckinForm, CheckinFormField, CheckinFieldType, CheckinFormPurpose } from '@/supabase/fetches/fetchcheckinforms'
 
 export type CheckinFormInput = {
   id?: string
   trainer_id: string | null
   name: string
   description?: string | null
+  purpose?: CheckinFormPurpose
 }
 
 export type CheckinFormFieldInput = {
@@ -22,6 +23,7 @@ export async function upsertCheckinForm(input: CheckinFormInput): Promise<Checki
     trainer_id: input.trainer_id,
     name: input.name.trim(),
     description: input.description?.trim() || null,
+    purpose: input.purpose ?? 'checkin',
     updated_at: new Date().toISOString(),
   }
 

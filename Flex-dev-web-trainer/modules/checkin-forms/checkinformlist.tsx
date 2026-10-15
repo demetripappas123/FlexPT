@@ -5,6 +5,8 @@ import { useAuth } from '@/context/authcontext'
 import {
   CheckinFieldType,
   CheckinForm,
+  CheckinFormPurpose,
+  CHECKIN_FORM_PURPOSE_LABEL,
   fetchCheckinForms,
   fetchCheckinFormWithFields,
 } from '@/supabase/fetches/fetchcheckinforms'
@@ -22,6 +24,8 @@ import {
 } from '@/components/ui/dialog'
 import { Plus, Pencil, Trash, ClipboardList, UserPlus } from 'lucide-react'
 import AssignCheckinFormDialog from '@/modules/clients/assigncheckinformdialog'
+
+const PURPOSE_OPTIONS: CheckinFormPurpose[] = ['intake', 'checkin', 'habit', 'other']
 
 const FIELD_TYPES: { value: CheckinFieldType; label: string }[] = [
   { value: 'text', label: 'Short text' },
@@ -55,6 +59,7 @@ export default function CheckinFormList() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [purpose, setPurpose] = useState<CheckinFormPurpose>('checkin')
   const [fields, setFields] = useState<DraftField[]>([emptyDraftField()])
   const [deleteTarget, setDeleteTarget] = useState<CheckinForm | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -82,6 +87,7 @@ export default function CheckinFormList() {
     setEditingId(null)
     setName('')
     setDescription('')
+    setPurpose('checkin')
     setFields([emptyDraftField()])
     setError(null)
     setDialogOpen(true)
@@ -94,6 +100,7 @@ export default function CheckinFormList() {
       setEditingId(form.id)
       setName(full?.name ?? form.name)
       setDescription(full?.description ?? '')
+      setPurpose(full?.purpose ?? form.purpose ?? 'checkin')
       const existing = full?.fields ?? []
       setFields(
         existing.length > 0
@@ -127,6 +134,7 @@ export default function CheckinFormList() {
         trainer_id: user.id,
         name,
         description,
+        purpose,
       })
       await replaceCheckinFormFields(saved.id, validFields)
       setDialogOpen(false)
@@ -194,7 +202,12 @@ export default function CheckinFormList() {
                 onClick={() => openEdit(form)}
                 className="flex-1 text-left p-4 cursor-pointer"
               >
-                <h3 className="text-lg font-semibold text-foreground">{form.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">{form.name}</h3>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                    {CHECKIN_FORM_PURPOSE_LABEL[form.purpose ?? 'checkin']}
+                  </span>
+                </div>
                 {form.description && (
                   <p className="text-sm text-muted-foreground mt-1">{form.description}</p>
                 )}
@@ -247,6 +260,20 @@ export default function CheckinFormList() {
                 className="bg-input text-foreground border-border"
                 placeholder="Weekly progress check-in"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Purpose</label>
+              <select
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value as CheckinFormPurpose)}
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground text-sm cursor-pointer"
+              >
+                {PURPOSE_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {CHECKIN_FORM_PURPOSE_LABEL[value]}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-muted-foreground">Description</label>
