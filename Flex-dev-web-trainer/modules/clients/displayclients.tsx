@@ -24,6 +24,7 @@ import {
   matchesClientRosterFilter,
   countClientRosterFilters,
 } from '@/supabase/fetches/fetchclientroster'
+import { clientAvatarUrl } from '@/supabase/storage/clientavatar'
 
 export interface DisplayClientsRef {
   refresh: () => Promise<void>
@@ -51,6 +52,16 @@ const FLAG_LABEL: Record<ClientRosterFlag, string> = {
   expiring: 'Expiring',
   unscheduled: 'Unscheduled',
   checkin_overdue: 'Check-in overdue',
+  solo_overdue: 'Solo workout missed',
+}
+
+const FLAG_CLASS: Record<ClientRosterFlag, string> = {
+  payment_failed: 'bg-red-500/20 text-red-500',
+  past_due: 'bg-red-500/20 text-red-500',
+  expiring: 'bg-amber-500/15 text-amber-400',
+  unscheduled: 'bg-muted text-muted-foreground',
+  checkin_overdue: 'bg-amber-500/15 text-amber-400',
+  solo_overdue: 'bg-red-500/20 text-red-500',
 }
 
 function formatMoney(value: number | null): string {
@@ -307,18 +318,30 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
               ) : (
                 filtered.map((row) => {
                   const checkIn = formatCheckInColumn(row)
+                  const paymentOverdue =
+                    row.lastPaymentStatus === 'past_due' ||
+                    row.lastPaymentStatus === 'failed' ||
+                    row.flags.includes('past_due') ||
+                    row.flags.includes('payment_failed')
                   return (
                   <tr
                     key={row.id}
                     onClick={() => router.push(`/people/${row.id}`)}
-                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${
+                      paymentOverdue ? 'bg-red-500/5' : ''
+                    }`}
                   >
                     <td className="px-4 py-3 align-top">
                       <div className="flex items-start gap-3 min-w-[180px]">
-                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="text-xs font-semibold text-primary">
-                            {row.name.charAt(0).toUpperCase()}
-                          </span>
+                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                          {clientAvatarUrl(row.avatarPath) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={clientAvatarUrl(row.avatarPath)!} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-medium text-foreground">
+                              {row.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">{row.name}</p>
@@ -327,9 +350,11 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
                               {row.flags.map((flag) => (
                                 <span
                                   key={flag}
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${FLAG_CLASS[flag]}`}
                                 >
-                                  {FLAG_LABEL[flag]}
+                                  {flag === 'solo_overdue' && row.overdueSoloCount > 1
+                                    ? `${row.overdueSoloCount} solo workouts missed`
+                                    : FLAG_LABEL[flag]}
                                 </span>
                               ))}
                             </div>
@@ -374,12 +399,14 @@ const DisplayClients = forwardRef<DisplayClientsRef>((_props, ref) => {
                       <p className="text-xs text-muted-foreground mt-0.5">{checkIn.detail}</p>
                     </td>
                     <td className="px-4 py-3 align-top min-w-[170px]">
-                      <p className="text-foreground">
+                      <p className={paymentOverdue ? 'text-red-500 font-semibold' : 'text-foreground'}>
                         {row.nextBillAt
-                          ? `Next ${format(new Date(row.nextBillAt), 'MMM d')}${row.nextBillAmount != null ? ` · ${formatMoney(row.nextBillAmount)}` : ''}`
-                          : '—'}
+                          ? `${paymentOverdue ? 'Overdue' : 'Next'} ${format(new Date(row.nextBillAt), 'MMM d')}${row.nextBillAmount != null ? ` · ${formatMoney(row.nextBillAmount)}` : ''}`
+                          : paymentOverdue
+                            ? 'Payment overdue'
+                            : '—'}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className={`text-xs mt-0.5 ${paymentOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
                         {lastPaymentLabel(row)}
                       </p>
                     </td>

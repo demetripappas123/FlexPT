@@ -8,14 +8,13 @@ import { fetchWeeks, Week } from '@/supabase/fetches/fetchweek'
 import DeleteWeekDialog from '@/modules/programs/deleteweek'
 import DeleteDayDialog from '@/modules/programs/deleteday'
 import { TrashIcon } from '@heroicons/react/24/solid'
-import { Plus, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { addDay, updateDay, updateDayDelivery } from '@/supabase/upserts/upsertday'
 import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { fetchDayExercises, DayExerciseWithName } from '@/supabase/fetches/fetchdayexercises'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import AddDayDialog from '@/modules/programs/adddaydialog'
-import ProgramChat from '@/modules/programs/programchat'
 
 type Program = {
   id: string
@@ -37,9 +36,6 @@ export default function ProgramPage() {
   const [activeWeekId, setActiveWeekId] = useState<string | null>(null)
   // For controlling edit mode - stores the day being edited
   const [editingDayId, setEditingDayId] = useState<string | null>(null)
-  // For controlling AI editor visibility
-  const [aiEditorExpanded, setAiEditorExpanded] = useState(true)
-
   const refreshWeeks = async () => {
     const programId = params.id
     if (!programId) return
@@ -64,6 +60,14 @@ export default function ProgramPage() {
       console.error('Failed to fetch weeks:', err)
     }
   }
+
+  useEffect(() => {
+    const onUpdated = () => {
+      void refreshWeeks()
+    }
+    window.addEventListener('flexpt-program-updated', onUpdated)
+    return () => window.removeEventListener('flexpt-program-updated', onUpdated)
+  }, [params.id])
 
   useEffect(() => {
     const loadProgram = async () => {
@@ -209,17 +213,6 @@ export default function ProgramPage() {
           
           <div className="flex justify-start items-center gap-2">
             <button
-              onClick={() => setAiEditorExpanded(!aiEditorExpanded)}
-              className="flex items-center justify-center p-2 bg-muted rounded-md hover:bg-muted/80 cursor-pointer text-foreground"
-              title={aiEditorExpanded ? "Collapse AI Editor" : "Expand AI Editor"}
-            >
-              {aiEditorExpanded ? (
-                <ChevronLeft className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-            <button
               onClick={handleAddWeek}
               className="flex items-center gap-2 px-4 py-2 bg-primary rounded-md hover:bg-primary/90 cursor-pointer text-primary-foreground"
             >
@@ -231,9 +224,8 @@ export default function ProgramPage() {
       </div>
 
       {/* Main Content Area - Program and Chat side by side */}
-      <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        {/* Left side - Program content */}
-        <div className={`${aiEditorExpanded ? 'flex-1' : 'flex-1'} space-y-4 overflow-y-auto`}>
+      <div className="space-y-4">
+        <div className="space-y-4">
           <div className="space-y-4">
         {weeks.length === 0 && (
           <p className="text-muted-foreground">No weeks yet. Add one!</p>
@@ -363,17 +355,6 @@ export default function ProgramPage() {
         ))}
           </div>
         </div>
-
-        {/* Right side - Chat UI */}
-        {aiEditorExpanded && (
-          <div className="w-96 flex-shrink-0">
-            <ProgramChat 
-              programId={program.id} 
-              programName={program.name}
-              onProgramUpdated={refreshWeeks}
-            />
-          </div>
-        )}
       </div>
     </div>
   )

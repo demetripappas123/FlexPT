@@ -29,30 +29,58 @@ export function workoutDeliveryCardClass(workout: {
   delivery?: WorkoutDelivery | string | null
   session?: { status?: string | null } | null
   completed?: boolean
+  workout_date?: string | null
 }): string {
-  const delivery = workoutDelivery(workout)
-  const sessionAccent = delivery === 'session' ? 'border-l-4 border-l-violet-500' : 'border-l-4 border-l-slate-400'
+  if (isSoloWorkoutOverdue(workout)) {
+    return 'border-destructive/40 bg-destructive/10'
+  }
   if (workout.completed) {
-    return `border-emerald-500/40 bg-emerald-500/5 ${sessionAccent}`
+    return 'border-border bg-card'
   }
-  if (delivery === 'session') {
-    return `border-violet-500/50 bg-violet-500/10 ${sessionAccent}`
-  }
-  return `border-orange-500/40 bg-orange-500/5 ${sessionAccent}`
+  return 'border-border bg-secondary/40'
 }
 
 export function workoutCalendarChipClass(workout: {
   delivery?: WorkoutDelivery | string | null
   session?: { status?: string | null } | null
   completed?: boolean
+  workout_date?: string | null
 }): string {
+  if (isSoloWorkoutOverdue(workout)) {
+    return 'bg-destructive/15 border border-destructive/40 text-destructive hover:bg-destructive/20'
+  }
   if (workout.completed) {
-    return 'bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30'
+    return 'bg-secondary border border-border text-foreground hover:bg-secondary/80'
   }
   if (workoutDelivery(workout) === 'session') {
-    return 'bg-violet-600/20 border border-violet-600/50 text-violet-300 hover:bg-violet-600/30'
+    return 'bg-foreground text-background hover:bg-foreground/90'
   }
-  return 'bg-orange-600/20 border border-orange-600/50 text-orange-400 hover:bg-orange-600/30'
+  return 'bg-card border border-border text-foreground hover:bg-muted'
+}
+
+function dateKey(value: string | null | undefined): string | null {
+  if (!value) return null
+  const match = value.slice(0, 10).match(/^(\d{4}-\d{2}-\d{2})$/)
+  return match ? match[1] : null
+}
+
+function todayKey(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+/** Solo workout whose assigned day is before today and is still incomplete. */
+export function isSoloWorkoutOverdue(workout: {
+  delivery?: WorkoutDelivery | string | null
+  completed?: boolean | null
+  workout_date?: string | null
+}, now: Date = new Date()): boolean {
+  if (workout.completed) return false
+  if (workout.delivery !== 'solo') return false
+  const due = dateKey(workout.workout_date)
+  if (!due) return false
+  return due < todayKey(now)
 }
 
 export function workoutDeliveryLabel(workout: {

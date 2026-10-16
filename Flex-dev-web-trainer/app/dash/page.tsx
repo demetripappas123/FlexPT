@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/context/authcontext'
 import { fetchDashboardMetricsProgressive } from '@/supabase/fetches/fetchdashboardmetrics'
-import { fetchNewClientsThisMonth, fetchNewLeadsThisMonth, fetchSuccessfulPaymentsThisMonth, fetchLeadSources, fetchProspectsForScatter } from '@/supabase/fetches/fetchdashboardquickmetrics'
+import { fetchNewClientsThisMonth, fetchNewLeadsThisMonth, fetchPaymentAudit, PaymentAudit, fetchLeadSources, fetchProspectsForScatter } from '@/supabase/fetches/fetchdashboardquickmetrics'
 import { fetchPeople } from '@/supabase/fetches/fetchpeople'
 import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
 import { suggestMissedSessions } from '@/supabase/utils/sessionMissed'
@@ -16,10 +16,17 @@ import QuickMetricCard from '@/modules/dashboard/quickmetriccard'
 import ToggleRevenueCard from '@/modules/dashboard/togglerevenuecard'
 import LeadSourcesChart from '@/modules/dashboard/leadsourceschart'
 import { Users, UserPlus, DollarSign, Calendar, ListTodo } from 'lucide-react'
-import { getDateRangeBounds } from '@/supabase/utils/daterange'
+import {
+  DashboardPeriod,
+  dashboardPeriodBounds,
+  dashboardPeriodToChartRange,
+  formatDashboardPeriod,
+} from '@/supabase/utils/daterange'
 import { addDays, format, subMinutes } from 'date-fns'
 import { fetchOpenTasks, Task } from '@/supabase/fetches/fetchtasks'
 import TaskFeed from '@/modules/dashboard/taskfeed'
+import BehindOnSessions from '@/modules/dashboard/behindonsessions'
+import { ClientSessionsBehind, fetchClientsBehindOnSessions } from '@/supabase/utils/sessionsBehind'
 
 function sessionTimeUntil(startTime: Date | null): { relative: string; clock: string | null } {
   if (!startTime) return { relative: 'Time TBD', clock: null }
@@ -38,6 +45,8 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const [closeRate, setCloseRate] = useState<number | null>(null)
   const [showRate, setShowRate] = useState<number | null>(null)
+  const [ratesLoaded, setRatesLoaded] = useState(false)
+  const [hourlyLoaded, setHourlyLoaded] = useState(false)
   const [averageBookings, setAverageBookings] = useState<number | null>(null)
   const [trainedRevenue, setTrainedRevenue] = useState<number | null>(null)
   const [hourlyAverage, setHourlyAverage] = useState<number | null>(null)
@@ -46,7 +55,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [newClients, setNewClients] = useState<number | null>(null)
   const [newLeads, setNewLeads] = useState<number | null>(null)
-  const [successfulPayments, setSuccessfulPayments] = useState<number | null>(null)
+  const [paymentAudit, setPaymentAudit] = useState<PaymentAudit | null>(null)
   const [leadSources, setLeadSources] = useState<Array<{ source: string; count: number }>>([])
   const [prospectsForScatter, setProspectsForScatter] = useState<Array<{ created_at: string; lead_source: string | null }>>([])
   const [loadingQuickMetrics, setLoadingQuickMetrics] = useState(false)
@@ -54,6 +63,18 @@ export default function DashboardPage() {
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [openTasks, setOpenTasks] = useState<Task[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
+  const [clientsBehind, setClientsBehind] = useState<ClientSessionsBehind[]>([])
+  const [loadingBehind, setLoadingBehind] = useState(false)
+  const [period, setPeriod] = useState<DashboardPeriod>('month')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  const rangeBounds = useMemo(
+    () => dashboardPeriodBounds(period, customStart, customEnd),
+    [period, customStart, customEnd]
+  )
+  const chartRange = dashboardPeriodToChartRange(period)
+  const rangeLabel = formatDashboardPeriod(rangeBounds, period)
 
 
   useEffect(() => {
@@ -61,41 +82,36 @@ export default function DashboardPage() {
       if (!user) return
       try {
         setError(null)
-        // Revenue uses monthly, bookings use daily
-        const revenueRangeBounds = getDateRangeBounds('monthly')
-        const bookingsRangeBounds = getDateRangeBounds('today')
-        
-        // Fetch metrics with different date ranges
-        const bookingsMetrics = await fetchDashboardMetricsProgressive(user.id, bookingsRangeBounds)
-        const revenueMetrics = await fetchDashboardMetricsProgressive(user.id, revenueRangeBounds)
+        setRatesLoaded(false)
+        setHourlyLoaded(false)
+        const metrics = await fetchDashboardMetricsProgressive(user.id, rangeBounds)
 
         // Load all metrics in parallel, update state as each completes
-        bookingsMetrics.closeRate
-          .then(value => setCloseRate(value))
-          .catch(err => console.error('Error loading close rate:', err))
+        Promise.all([
+          metrics.closeRate.then(value => setCloseRate(value)),
+          metrics.showRate.then(value => setShowRate(value)),
+        ])
+          .catch(err => console.error('Error loading rates:', err))
+          .finally(() => setRatesLoaded(true))
         
-        bookingsMetrics.showRate
-          .then(value => setShowRate(value))
-          .catch(err => console.error('Error loading show rate:', err))
-        
-        bookingsMetrics.averageBookings
+        metrics.averageBookings
           .then(value => setAverageBookings(value))
           .catch(err => console.error('Error loading average bookings:', err))
         
-        bookingsMetrics.hourlyAverage
+        metrics.hourlyAverage
           .then(value => setHourlyAverage(value))
           .catch(err => console.error('Error loading hourly average:', err))
+          .finally(() => setHourlyLoaded(true))
         
-        // Revenue metrics use monthly
-        revenueMetrics.trainedRevenue
+        metrics.trainedRevenue
           .then(value => setTrainedRevenue(value))
           .catch(err => console.error('Error loading trained revenue:', err))
         
-        revenueMetrics.mtdRevenue
+        metrics.mtdRevenue
           .then(value => setMtdRevenue(value))
           .catch(err => console.error('Error loading MTD revenue:', err))
         
-        revenueMetrics.projectedRevenue
+        metrics.projectedRevenue
           .then(value => setProjectedRevenue(value))
           .catch(err => console.error('Error loading projected revenue:', err))
       } catch (err) {
@@ -105,25 +121,23 @@ export default function DashboardPage() {
     }
 
     loadMetrics()
-  }, [user])
+  }, [user, rangeBounds])
 
   useEffect(() => {
     const loadQuickMetrics = async () => {
       if (!user) return
       setLoadingQuickMetrics(true)
       try {
-        // All metrics use monthly as default
-        const defaultRangeBounds = getDateRangeBounds('monthly')
         const [clients, leads, payments, sources, prospects] = await Promise.all([
-          fetchNewClientsThisMonth(user.id, defaultRangeBounds),
-          fetchNewLeadsThisMonth(user.id, defaultRangeBounds),
-          fetchSuccessfulPaymentsThisMonth(user.id, defaultRangeBounds),
-          fetchLeadSources(user.id),
-          fetchProspectsForScatter(user.id),
+          fetchNewClientsThisMonth(user.id, rangeBounds),
+          fetchNewLeadsThisMonth(user.id, rangeBounds),
+          fetchPaymentAudit(user.id, rangeBounds),
+          fetchLeadSources(user.id, rangeBounds),
+          fetchProspectsForScatter(user.id, rangeBounds),
         ])
         setNewClients(clients)
         setNewLeads(leads)
-        setSuccessfulPayments(payments)
+        setPaymentAudit(payments)
         setLeadSources(sources)
         setProspectsForScatter(prospects)
       } catch (err) {
@@ -134,7 +148,7 @@ export default function DashboardPage() {
     }
 
     loadQuickMetrics()
-  }, [user])
+  }, [user, rangeBounds])
 
   useEffect(() => {
     const loadUpcomingSessions = async () => {
@@ -312,6 +326,20 @@ export default function DashboardPage() {
       }
     }
     loadTasks()
+
+    const loadBehind = async () => {
+      if (!user) return
+      setLoadingBehind(true)
+      try {
+        setClientsBehind(await fetchClientsBehindOnSessions(user.id))
+      } catch (err) {
+        console.error('Error loading clients behind on sessions:', err)
+        setClientsBehind([])
+      } finally {
+        setLoadingBehind(false)
+      }
+    }
+    loadBehind()
   }, [user])
 
   if (error) {
@@ -325,13 +353,72 @@ export default function DashboardPage() {
     )
   }
 
-  const todayLabel = format(new Date(), 'EEEE, MMM d')
+  const periodOptions: { id: DashboardPeriod; label: string }[] = [
+    { id: 'day', label: 'Day' },
+    { id: 'week', label: 'Week' },
+    { id: 'month', label: 'Month' },
+    { id: 'custom', label: 'Custom' },
+  ]
 
   return (
     <div className="w-full space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">{todayLabel}</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[26px] font-normal tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">{rangeLabel}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center rounded-md border border-border bg-card p-0.5">
+              {periodOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setPeriod(option.id)}
+                  className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                    period === option.id
+                      ? 'bg-foreground text-background'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {period === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => setCustomStart(event.target.value)}
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                  aria-label="Start date"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => setCustomEnd(event.target.value)}
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                  aria-label="End date"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex items-start gap-3">
+            {ratesLoaded ? (
+              <>
+                <CloseRateChart closeRate={closeRate} compact />
+                <ShowRateChart showRate={showRate} compact />
+              </>
+            ) : (
+              <>
+                <div className="h-14 w-14 rounded-full bg-muted animate-pulse" />
+                <div className="h-14 w-14 rounded-full bg-muted animate-pulse" />
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -349,17 +436,18 @@ export default function DashboardPage() {
         />
         <QuickMetricCard
           title="Audit"
-          value={successfulPayments}
+          value={paymentAudit ? `${paymentAudit.successful} / ${paymentAudit.due}` : null}
+          detail="paid / due"
           icon={<DollarSign className="h-4 w-4" />}
           loading={loadingQuickMetrics}
         />
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Today&apos;s Bookings</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Bookings</h3>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </div>
           {averageBookings !== null ? (
-            <p className="text-2xl font-bold text-primary">{averageBookings.toLocaleString()}</p>
+            <p className="text-2xl font-normal tracking-tight text-foreground">{averageBookings.toLocaleString()}</p>
           ) : (
             <div className="h-8 bg-muted rounded animate-pulse" />
           )}
@@ -377,13 +465,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <BehindOnSessions clients={clientsBehind} loading={loadingBehind} />
+
       <div className="flex flex-col lg:flex-row gap-4 items-stretch">
         <div className="min-w-0 lg:flex-[1.35]">
           <ToggleRevenueCard
             mtdRevenue={mtdRevenue}
             projectedRevenue={projectedRevenue}
             trainedRevenue={trainedRevenue}
-            dateRange="monthly"
+            dateRange={chartRange}
             trainerId={user?.id}
           />
         </div>
@@ -395,20 +485,32 @@ export default function DashboardPage() {
                 <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
                 <h2 className="text-sm font-semibold truncate">Tasks</h2>
                 {!loadingTasks && (
-                  <span className="text-[11px] text-primary bg-primary/15 rounded-full px-2 py-0.5">
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
                     {openTasks.length}
                   </span>
                 )}
               </div>
               <Link
                 href="/tasks"
-                className="text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+                className="text-xs text-foreground hover:text-muted-foreground transition-colors shrink-0"
               >
                 See all
               </Link>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <TaskFeed tasks={openTasks} loading={loadingTasks} compact />
+              <TaskFeed
+                tasks={openTasks}
+                loading={loadingTasks}
+                compact
+                onFulfilled={async () => {
+                  if (!user) return
+                  try {
+                    setOpenTasks(await fetchOpenTasks(user.id, 20))
+                  } catch (err) {
+                    console.error('Error reloading tasks:', err)
+                  }
+                }}
+              />
             </div>
           </section>
 
@@ -418,14 +520,14 @@ export default function DashboardPage() {
                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 <h2 className="text-sm font-semibold truncate">Sessions</h2>
                 {!loadingSessions && (
-                  <span className="text-[11px] text-primary bg-primary/15 rounded-full px-2 py-0.5">
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
                     {upcomingSessions.length}
                   </span>
                 )}
               </div>
               <Link
                 href="/calendar"
-                className="text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+                className="text-xs text-foreground hover:text-muted-foreground transition-colors shrink-0"
               >
                 Calendar
               </Link>
@@ -447,13 +549,13 @@ export default function DashboardPage() {
                       href={`/events/${session.id}`}
                       className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 transition-colors group"
                     >
-                      <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                        <span className="text-[11px] font-semibold text-primary">
+                      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-medium text-foreground">
                           {session.personName?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                        <p className="text-sm font-medium truncate group-hover:text-foreground transition-colors">
                           {session.personName || 'Unknown'}
                         </p>
                         <p className={`text-[11px] truncate ${session.missed === 'suggested' ? 'text-amber-500' : 'text-muted-foreground'}`}>
@@ -469,35 +571,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
         <LeadSourcesChart
           sources={leadSources}
           prospects={prospectsForScatter}
           loading={loadingQuickMetrics}
-          dateRange="monthly"
+          dateRange={chartRange}
         />
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
-            {closeRate !== null ? (
-              <CloseRateChart closeRate={closeRate} />
-            ) : (
-              <div className="h-24 w-24 bg-muted rounded-full animate-pulse" />
-            )}
-          </div>
-          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
-            {showRate !== null ? (
-              <ShowRateChart showRate={showRate} />
-            ) : (
-              <div className="h-24 w-24 bg-muted rounded-full animate-pulse" />
-            )}
-          </div>
-          <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
-            {hourlyAverage !== null ? (
-              <HourlyAverageChart hourlyAverage={hourlyAverage} />
-            ) : (
-              <div className="h-16 w-24 bg-muted rounded animate-pulse" />
-            )}
-          </div>
+        <div className="bg-card border border-border rounded-lg p-4 flex items-center justify-center min-h-[160px]">
+          {hourlyLoaded ? (
+            <HourlyAverageChart hourlyAverage={hourlyAverage} />
+          ) : (
+            <div className="h-16 w-24 bg-muted rounded animate-pulse" />
+          )}
         </div>
       </div>
     </div>

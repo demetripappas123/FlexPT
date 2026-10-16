@@ -432,7 +432,7 @@ export default function EditWorkout({
     <>
       {!hideDialog && (
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-foreground">
             {mode === 'create' && 'Assign Workout'}
             {mode === 'edit' && 'Edit Workout'}
             {mode === 'in-progress' && 'Edit Session Workout'}
@@ -445,7 +445,7 @@ export default function EditWorkout({
           <div className="mb-4 space-y-3">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-white">Start Time</label>
+                <label className="block text-sm font-medium mb-1 text-foreground">Start Time</label>
                 <Input
                   type="datetime-local"
                   step="900"
@@ -454,11 +454,11 @@ export default function EditWorkout({
                     const roundedTime = roundTo15Minutes(e.target.value)
                     setSessionStartTime(roundedTime)
                   }}
-                  className="bg-[#111111] text-white border-[#2a2a2a]"
+                  className="bg-card text-foreground border-border"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 text-white">End Time</label>
+                <label className="block text-sm font-medium mb-1 text-foreground">End Time</label>
                 <Input
                   type="datetime-local"
                   step="900"
@@ -467,7 +467,7 @@ export default function EditWorkout({
                     const roundedTime = roundTo15Minutes(e.target.value)
                     setSessionEndTime(roundedTime)
                   }}
-                  className="bg-[#111111] text-white border-[#2a2a2a]"
+                  className="bg-card text-foreground border-border"
                 />
               </div>
             </div>
@@ -477,11 +477,11 @@ export default function EditWorkout({
         {/* Exercises - Compact layout matching display UI */}
         <div className="space-y-3 mt-4">
           {exercises.map((ex, index) => (
-            <div key={index} className="bg-[#1a1a1a] rounded-md p-3 relative">
+            <div key={index} className="bg-secondary/50 rounded-md p-3 relative">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex-1 relative">
                   <div className="relative inline-block">
-                    <span className="text-md font-medium text-white mr-1">{index + 1}.</span>
+                    <span className="text-md font-medium text-foreground mr-1">{index + 1}.</span>
                     <Input
                       value={ex.exercise_name || ''}
                       onChange={(e) => {
@@ -503,14 +503,14 @@ export default function EditWorkout({
                         }, 200)
                       }}
                       placeholder="Exercise name..."
-                      className="bg-transparent border-none text-md font-medium text-white p-0 h-auto w-auto inline-block focus:ring-0 focus-visible:ring-0 min-w-[200px]"
+                      className="bg-transparent border-none text-md font-medium text-foreground p-0 h-auto w-auto inline-block focus:ring-0 focus-visible:ring-0 min-w-[200px]"
                     />
                     {openCombobox[index] && (
                       <div
-                        className="absolute z-50 w-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-md shadow-lg"
+                        className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md"
                         onMouseDown={(e) => e.preventDefault()}
                       >
-                        <Command className="bg-[#111111] text-white">
+                        <Command className="bg-card text-foreground">
                           <CommandInput
                             value={searchValue[index] || ex.exercise_name || ''}
                             onValueChange={(value) => {
@@ -518,11 +518,11 @@ export default function EditWorkout({
                               updateExercise(index, 'exercise_name', value)
                             }}
                             placeholder="Search exercises..."
-                            className="bg-[#111111] text-white border-[#2a2a2a]"
+                            className="bg-card text-foreground border-border"
                           />
-                          <CommandList className="max-h-[200px] overflow-y-auto bg-[#111111]">
-                            <CommandEmpty className="text-gray-400 py-4 text-center">No exercises found.</CommandEmpty>
-                            <CommandGroup className="bg-[#111111]">
+                          <CommandList className="max-h-[200px] overflow-y-auto bg-card">
+                            <CommandEmpty className="text-muted-foreground py-4 text-center">No exercises found.</CommandEmpty>
+                            <CommandGroup className="bg-card">
                               {exerciseLibrary.length > 0 ? (
                                 exerciseLibrary
                                   .filter((exercise) => {
@@ -539,13 +539,13 @@ export default function EditWorkout({
                                         setSearchValue((prev) => ({ ...prev, [index]: exercise.name }))
                                         setOpenCombobox((prev) => ({ ...prev, [index]: false }))
                                       }}
-                                      className="text-white hover:bg-[#2a2a2a] cursor-pointer bg-[#111111]"
+                                      className="text-foreground hover:bg-muted cursor-pointer bg-card"
                                     >
                                       {exercise.name}
                                     </CommandItem>
                                   ))
                               ) : (
-                                <div className="text-gray-400 py-2 px-4 text-sm">Loading exercises...</div>
+                                <div className="text-muted-foreground py-2 px-4 text-sm">Loading exercises...</div>
                               )}
                             </CommandGroup>
                           </CommandList>
@@ -560,11 +560,11 @@ export default function EditWorkout({
                     value={ex.notes || ''}
                     onChange={(e) => updateExercise(index, 'notes', e.target.value)}
                     placeholder="Notes"
-                    className="bg-transparent border-none text-xs text-gray-400 p-0 h-auto w-32 focus:ring-0"
+                    className="bg-transparent border-none text-xs text-muted-foreground p-0 h-auto w-32 focus:ring-0"
                   />
                   <button
                     onClick={() => removeExercise(index)}
-                    className="p-1 text-red-500 hover:text-red-600 cursor-pointer"
+                    className="p-1 text-destructive hover:text-destructive/80 cursor-pointer"
                   >
                     <Trash size={14} />
                   </button>
@@ -573,7 +573,7 @@ export default function EditWorkout({
 
               {ex.sets && ex.sets.length > 0 && (
                 <div className="space-y-1">
-                  <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-400 pb-1 border-b border-[#2a2a2a]">
+                  <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground pb-1 border-b border-border">
                     <div>Set</div>
                     <div>Weight</div>
                     <div>Reps</div>
@@ -583,7 +583,7 @@ export default function EditWorkout({
                   </div>
                   {ex.sets.map((set, setIdx) => (
                     <div key={setIdx} className="group grid grid-cols-6 gap-2 text-xs items-center">
-                      <div className="text-gray-300">{set.set_number}</div>
+                      <div className="text-foreground">{set.set_number}</div>
                       <Input
                         id={`input-${index}-${setIdx}-weight`}
                         type={allowRanges ? "text" : "number"}
@@ -600,7 +600,7 @@ export default function EditWorkout({
                         }}
                         onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'weight')}
                         placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
-                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        className="bg-transparent border-none text-foreground p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
                         id={`input-${index}-${setIdx}-reps`}
@@ -615,7 +615,7 @@ export default function EditWorkout({
                         }}
                         onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'reps')}
                         placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
-                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        className="bg-transparent border-none text-foreground p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
                         id={`input-${index}-${setIdx}-rir`}
@@ -630,7 +630,7 @@ export default function EditWorkout({
                         }}
                         onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'rir')}
                         placeholder={allowRanges ? "e.g. 2 or 1-3" : "-"}
-                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        className="bg-transparent border-none text-foreground p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
                         id={`input-${index}-${setIdx}-rpe`}
@@ -646,7 +646,7 @@ export default function EditWorkout({
                         }}
                         onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'rpe')}
                         placeholder={allowRanges ? "e.g. 7 or 6-8" : "-"}
-                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        className="bg-transparent border-none text-foreground p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <div className="flex items-center gap-1">
                         <Input
@@ -656,11 +656,11 @@ export default function EditWorkout({
                           onChange={(e) => updateSet(index, setIdx, 'notes', e.target.value || null)}
                           onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'notes')}
                           placeholder="-"
-                          className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs truncate flex-1 focus:ring-0"
+                          className="bg-transparent border-none text-foreground p-0 h-6 text-xs truncate flex-1 focus:ring-0"
                         />
                         <button
                           onClick={() => removeSet(index, setIdx)}
-                          className="p-0.5 text-red-400 hover:text-red-300 cursor-pointer"
+                          className="p-0.5 text-destructive hover:text-destructive/80 cursor-pointer"
                           title="Remove set"
                         >
                           <Trash size={10} />
@@ -669,12 +669,12 @@ export default function EditWorkout({
                     </div>
                   ))}
                   {/* Add Set Button - shown when sets exist */}
-                  <div className="mt-2 pt-2 border-t border-[#2a2a2a]">
+                  <div className="mt-2 pt-2 border-t border-border">
                     <Button
                       onClick={() => addSet(index)}
                       variant="ghost"
                       size="sm"
-                      className="text-xs h-6 px-2 text-gray-400 hover:text-white cursor-pointer w-full"
+                      className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground cursor-pointer w-full"
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       Add Set
@@ -684,12 +684,12 @@ export default function EditWorkout({
               )}
               {ex.sets.length === 0 && (
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-500">No sets</span>
+                  <span className="text-xs text-muted-foreground">No sets</span>
                   <Button
                     onClick={() => addSet(index)}
                     variant="ghost"
                     size="sm"
-                    className="text-xs h-6 px-2 text-gray-400 hover:text-white cursor-pointer"
+                    className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     <Plus className="h-3 w-3 mr-1" />
                     Add Set
@@ -703,7 +703,7 @@ export default function EditWorkout({
           <Button
             onClick={addExercise}
             variant="outline"
-            className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer text-sm py-2"
+            className="w-full flex items-center justify-center gap-2 cursor-pointer text-sm py-2"
           >
             <Plus size={16} /> Add Exercise
           </Button>
@@ -712,7 +712,7 @@ export default function EditWorkout({
       {!hideDialog && (
         <DialogFooter>
           <Button
-            className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+            className="w-full mt-4 cursor-pointer"
             onClick={handleSave}
             disabled={loading || exercises.length === 0}
           >
@@ -723,7 +723,7 @@ export default function EditWorkout({
       {hideDialog && (
         <div className="mt-6">
           <Button
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+            className="w-full cursor-pointer"
             onClick={handleSave}
             disabled={loading || exercises.length === 0}
           >
@@ -740,7 +740,7 @@ export default function EditWorkout({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-[#1f1f1f] border-[#2a2a2a] text-white custom-scrollbar">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-card border-border text-foreground custom-scrollbar">
         {content}
       </DialogContent>
     </Dialog>

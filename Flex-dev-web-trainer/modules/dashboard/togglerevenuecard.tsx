@@ -31,7 +31,7 @@ export default function ToggleRevenueCard({
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [chartColors, setChartColors] = useState({
     textPrimary: '#9ca3af',
-    line: '#7c3aed',
+    line: '#26251e',
   })
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function ToggleRevenueCard({
     const computedStyle = getComputedStyle(root)
     setChartColors({
       textPrimary: computedStyle.getPropertyValue('--muted-foreground').trim() || '#9ca3af',
-      line: computedStyle.getPropertyValue('--primary').trim() || '#7c3aed',
+      line: computedStyle.getPropertyValue('--foreground').trim() || '#26251e',
     })
   }, [theme])
 
@@ -93,11 +93,11 @@ export default function ToggleRevenueCard({
 
     return {
       grid: {
-        left: '35px',
-        right: '10px',
-        top: '60px',
-        bottom: '40px',
-        containLabel: false,
+        left: 8,
+        right: 16,
+        top: 72,
+        bottom: 8,
+        containLabel: true,
       },
       xAxis: {
         type: 'category',
@@ -136,6 +136,7 @@ export default function ToggleRevenueCard({
       },
       yAxis: {
         type: 'value',
+        min: 0,
         axisLine: {
           show: false,
         },
@@ -157,6 +158,7 @@ export default function ToggleRevenueCard({
           type: 'line',
           data: values,
           smooth: true,
+          clip: true,
           symbol: 'none',
           lineStyle: {
             color: chartColors.line,
@@ -189,7 +191,7 @@ export default function ToggleRevenueCard({
     <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] h-full flex flex-col relative overflow-hidden">
       {/* Background Line Chart */}
       {historicalData.length > 0 && !loadingHistory && chartOption && (
-        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.7, zIndex: 0 }}>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-lg" style={{ opacity: 0.7, zIndex: 0 }}>
           <ReactECharts
             option={chartOption}
             style={{ width: '100%', height: '100%' }}

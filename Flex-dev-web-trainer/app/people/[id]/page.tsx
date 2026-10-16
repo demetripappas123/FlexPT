@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/supabase/supabaseClient'
 import { Person } from '@/supabase/fetches/fetchpeople'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
@@ -28,6 +28,7 @@ import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutE
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import ClientLogin from '@/modules/clients/clientlogin'
+import ClientAvatar from '@/modules/clients/clientavatar'
 import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check, MessageSquare, Layers } from 'lucide-react'
 import { AssignedMeal, fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
 import AssignMealDialogContent from '@/modules/clients/assignmealdialog'
@@ -57,7 +58,7 @@ import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import { fetchPersonWorkoutsWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { updateWorkout } from '@/supabase/upserts/upsertworkout'
 import { fetchPersonPackagesWithRemaining } from '@/supabase/fetches/fetchpersonpackageswithremaining'
-import { workoutDeliveryCardClass } from '@/supabase/utils/workoutDelivery'
+import { isSoloWorkoutOverdue, workoutDeliveryCardClass } from '@/supabase/utils/workoutDelivery'
 import {
   ScheduleSessionButton,
   WorkoutDeliveryBadge,
@@ -76,6 +77,7 @@ import {
 export default function PersonPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
 
   const [person, setPerson] = useState<Person | null>(null)
@@ -84,6 +86,23 @@ export default function PersonPage() {
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
   const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress' | 'packages' | 'payments' | 'contracts' | 'program'>('progress')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const allowed = [
+      'nutrition',
+      'sessions',
+      'workouts',
+      'progress',
+      'packages',
+      'payments',
+      'contracts',
+      'program',
+    ] as const
+    if (tab && (allowed as readonly string[]).includes(tab)) {
+      setActiveTab(tab as (typeof allowed)[number])
+    }
+  }, [searchParams])
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
@@ -530,8 +549,11 @@ export default function PersonPage() {
         ← Back
       </button>
 
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">{person.name}</h1>
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <ClientAvatar person={person} onUpdated={setPerson} />
+          <h1 className="truncate text-3xl font-bold">{person.name}</h1>
+        </div>
         {isClient && (
           <div className="flex items-center gap-2">
             <button
@@ -886,7 +908,7 @@ export default function PersonPage() {
                   type="date"
                   value={newWorkoutDate}
                   onChange={(e) => setNewWorkoutDate(e.target.value)}
-                  className="bg-card text-foreground border-border max-w-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert"
+                  className="bg-card text-foreground border-border max-w-xs cursor-pointer"
                   required
                 />
               </div>
@@ -905,7 +927,8 @@ export default function PersonPage() {
                         sets: [],
                       }])
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-auto cursor-pointer"
+                    variant="outline"
+                    className="text-xs px-2 py-1 h-auto cursor-pointer"
                   >
                     <PlusIcon className="h-3 w-3 mr-1" />
                     Add Exercise
@@ -1197,7 +1220,7 @@ export default function PersonPage() {
                       alert('Error creating workout. Please try again.')
                     }
                   }}
-                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  className="cursor-pointer"
                 >
                   Save Workout
                 </Button>
@@ -1260,13 +1283,16 @@ export default function PersonPage() {
                               {workout.day_name || 'Workout'}
                             </h3>
                             <WorkoutDeliveryBadge workout={workout} />
-                            {!workout.completed && (
-                              <span className="px-2 py-1 bg-orange-600/20 text-orange-400 text-xs rounded border border-orange-600/50">
+                            {isSoloWorkoutOverdue(workout) ? (
+                              <span className="rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-destructive">
+                                Missed
+                              </span>
+                            ) : !workout.completed ? (
+                              <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                                 Incomplete
                               </span>
-                            )}
-                            {workout.completed && (
-                              <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded border border-green-600/50">
+                            ) : (
+                              <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
                                 Completed
                               </span>
                             )}
@@ -1315,7 +1341,7 @@ export default function PersonPage() {
                                   alert('Error completing workout. Please try again.')
                                 }
                               }}
-                              className="p-2 text-green-500 hover:text-green-600 cursor-pointer"
+                              className="p-2 text-foreground hover:text-muted-foreground cursor-pointer"
                               title="Mark as completed"
                             >
                               <Check className="h-5 w-5" />
@@ -1323,7 +1349,7 @@ export default function PersonPage() {
                           )}
                           <button
                             onClick={() => setEditingWorkoutId(workout.id)}
-                            className="p-2 text-orange-500 hover:text-orange-600 cursor-pointer"
+                            className="p-2 text-muted-foreground hover:text-foreground cursor-pointer"
                             title="Edit workout"
                           >
                             <Pencil className="h-5 w-5" />
@@ -1524,13 +1550,13 @@ export default function PersonPage() {
         const workoutToEdit = workouts.find(w => w.id === editingWorkoutId)
         
         return (
-          <div className="fixed inset-0 bg-background z-50 overflow-y-auto overflow-x-hidden" style={{ marginLeft: '256px' }}>
+          <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-background" style={{ marginLeft: '14rem' }}>
             <div className="max-w-4xl mx-auto p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Edit Workout</h2>
+                <h2 className="text-2xl font-normal tracking-tight text-foreground">Edit Workout</h2>
                 <button
                   onClick={() => setEditingWorkoutId(null)}
-                  className="p-2 text-gray-400 hover:text-white cursor-pointer"
+                  className="p-2 text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X className="h-6 w-6" />
                 </button>

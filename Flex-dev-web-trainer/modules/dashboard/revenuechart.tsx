@@ -1,15 +1,6 @@
 'use client'
 
 import React from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts'
 
 type RevenueChartProps = {
   revenue: number

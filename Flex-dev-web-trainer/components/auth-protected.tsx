@@ -4,6 +4,7 @@ import { useAuth } from '@/context/authcontext'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import Sidebar from '@/modules/sidebar'
+import Topbar from '@/modules/topbar'
 import { isClientRole, signOut } from '@/supabase/auth/auth-helpers'
 
 export default function AuthProtected({ children }: { children: React.ReactNode }) {
@@ -42,13 +43,15 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
     return null
   }
 
-  // Render protected content with sidebar
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <main className="flex-1 min-h-0 min-w-0 overflow-y-auto p-8 bg-background">
-        {children}
-      </main>
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <Topbar />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 min-h-0 min-w-0 overflow-y-auto p-8 bg-background">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }

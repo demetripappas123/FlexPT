@@ -37,13 +37,13 @@ export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promis
  * Conversion itself happens when a package is assigned. Wire this flag later
  * if we want to know which session closed them.
  */
-export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number> {
+export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number | null> {
   const prospectSessions = await fetchProspectSessions(dateRange)
   
   // Filter for completed sessions only
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
   
-  if (completedSessions.length === 0) return 0
+  if (completedSessions.length === 0) return null
   
   const convertedSessions = completedSessions.filter(s => s.converted === true).length
   const totalCompletedSessions = completedSessions.length
@@ -57,7 +57,7 @@ export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBou
  * Only considers prospect sessions: Prospect Session, Intro Session, Followup Session
  * Optionally filtered by date range
  */
-export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number> {
+export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number | null> {
   const prospectSessions = await fetchProspectSessions(dateRange)
   
   // Filter for completed sessions
@@ -70,7 +70,7 @@ export async function calculateProspectSessionShowRate(dateRange?: DateRangeBoun
   
   const totalRelevantSessions = completedSessions.length + cancelledSessions.length
   
-  if (totalRelevantSessions === 0) return 0
+  if (totalRelevantSessions === 0) return null
   
   return (completedSessions.length / totalRelevantSessions) * 100
 }

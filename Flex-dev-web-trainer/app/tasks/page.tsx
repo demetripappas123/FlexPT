@@ -42,7 +42,18 @@ export default function TasksPage() {
         </Link>
       </div>
       <div className="bg-card border border-border rounded-lg p-4 max-w-2xl">
-        <TaskFeed tasks={tasks} loading={loading} />
+        <TaskFeed
+          tasks={tasks}
+          loading={loading}
+          onFulfilled={async () => {
+            if (!user?.id) return
+            try {
+              setTasks(await fetchOpenTasks(user.id, 100))
+            } catch (err) {
+              console.error('Error reloading tasks:', err)
+            }
+          }}
+        />
       </div>
     </div>
   )

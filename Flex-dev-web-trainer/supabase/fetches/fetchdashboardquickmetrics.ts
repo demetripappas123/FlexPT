@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 import { fetchClients } from './fetchpeople'
-import { fetchPayments, isPaymentCountedForRevenue, getPaymentTimestamp } from './fetchpayments'
+import { fetchContracts, Contract } from './fetchcontracts'
+import { fetchPayments, isPaymentCountedForRevenue, getPaymentTimestamp, Payment } from './fetchpayments'
 import { DateRangeBounds } from '../utils/daterange'
 
 /**
@@ -98,16 +99,115 @@ export async function fetchSuccessfulPaymentsThisMonth(trainerId?: string | null
   return successfulPayments.length
 }
 
+export type PaymentAudit = {
+  successful: number
+  due: number
+}
+
+function parseLocalDate(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function addWeeks(date: Date, weeks: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + weeks * 7)
+  return next
+}
+
+function dueDatesForContract(contract: Contract, rangeStart: Date, asOf: Date): Date[] {
+  const start = parseLocalDate(contract.start_date)
+  if (!start || start.getTime() > asOf.getTime()) return []
+
+  if (contract.pif) {
+    return start.getTime() >= rangeStart.getTime() ? [start] : []
+  }
+
+  const cycleWeeks = Math.max(1, Number(contract.bill_cycle_length_weeks) || 1)
+  const dates: Date[] = []
+  let cursor = new Date(start)
+  for (let i = 0; i < 520 && cursor.getTime() <= asOf.getTime(); i++) {
+    if (cursor.getTime() >= rangeStart.getTime()) dates.push(new Date(cursor))
+    cursor = addWeeks(cursor, cycleWeeks)
+  }
+  return dates
+}
+
+function cycleWasPaid(payments: Payment[], due: Date, nextDue: Date): boolean {
+  return payments.some((payment) => {
+    if (!isPaymentCountedForRevenue(payment)) return false
+    const paidAt = getPaymentTimestamp(payment)
+    return paidAt >= due.getTime() && paidAt < nextDue.getTime()
+  })
+}
+
+/**
+ * Successful collections out of billings that have come due in the range.
+ * Dates after the current time are not due yet.
+ */
+export async function fetchPaymentAudit(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<PaymentAudit> {
+  const now = new Date()
+  const rangeStart = dateRange?.start ?? new Date(now.getFullYear(), now.getMonth(), 1)
+  const rangeEnd = dateRange?.end ?? now
+  const asOf = rangeEnd.getTime() < now.getTime() ? rangeEnd : now
+
+  const [contracts, payments] = await Promise.all([
+    fetchContracts(trainerId),
+    fetchPayments(trainerId),
+  ])
+
+  const paymentsByContract = new Map<string, Payment[]>()
+  for (const payment of payments) {
+    const list = paymentsByContract.get(payment.contract_id) ?? []
+    list.push(payment)
+    paymentsByContract.set(payment.contract_id, list)
+  }
+
+  let due = 0
+  let successful = 0
+
+  for (const contract of contracts) {
+    if (contract.status === 'cancelled') continue
+    const dates = dueDatesForContract(contract, rangeStart, asOf)
+    const contractPayments = paymentsByContract.get(contract.id) ?? []
+    const cycleWeeks = Math.max(1, Number(contract.bill_cycle_length_weeks) || 1)
+
+    dates.forEach((date, index) => {
+      due += 1
+      const nextDue = contract.pif
+        ? new Date(date.getFullYear() + 5, date.getMonth(), date.getDate())
+        : dates[index + 1] ?? addWeeks(date, cycleWeeks)
+      if (cycleWasPaid(contractPayments, date, nextDue)) successful += 1
+    })
+  }
+
+  return { successful, due }
+}
+
 /**
  * Fetch lead sources data (if lead_source field exists in people table)
  * Returns empty array if lead_source field doesn't exist
  */
-export async function fetchLeadSources(trainerId?: string | null): Promise<Array<{ source: string; count: number }>> {
+export async function fetchLeadSources(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<Array<{ source: string; count: number }>> {
   try {
     let query = supabase
       .from('people')
       .select('lead_source')
       .is('converted_at', null) // Only prospects
+
+    if (dateRange) {
+      query = query
+        .gte('created_at', dateRange.start.toISOString())
+        .lte('created_at', dateRange.end.toISOString())
+    }
     
     if (trainerId) {
       query = query.eq('trainer_id', trainerId)
@@ -146,13 +246,22 @@ export async function fetchLeadSources(trainerId?: string | null): Promise<Array
 /**
  * Fetch prospects with created_at and lead_source for scatter chart
  */
-export async function fetchProspectsForScatter(trainerId?: string | null): Promise<Array<{ created_at: string; lead_source: string | null }>> {
+export async function fetchProspectsForScatter(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<Array<{ created_at: string; lead_source: string | null }>> {
   try {
     let query = supabase
       .from('people')
       .select('created_at, lead_source')
       .is('converted_at', null) // Only prospects
       .order('created_at', { ascending: true })
+
+    if (dateRange) {
+      query = query
+        .gte('created_at', dateRange.start.toISOString())
+        .lte('created_at', dateRange.end.toISOString())
+    }
     
     if (trainerId) {
       query = query.eq('trainer_id', trainerId)

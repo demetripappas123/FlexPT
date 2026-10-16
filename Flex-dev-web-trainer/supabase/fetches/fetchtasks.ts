@@ -36,6 +36,40 @@ export function taskActionLabel(kind: TaskKind): string {
   }
 }
 
+export function taskKindLabel(kind: TaskKind): string {
+  switch (kind) {
+    case 'session':
+      return 'Session'
+    case 'workout':
+      return 'Workout'
+    case 'meal':
+      return 'Nutrition'
+    case 'checkin':
+      return 'Check-in'
+    case 'habit':
+      return 'Habit'
+    default:
+      return 'Deliverable'
+  }
+}
+
+export function taskDescription(kind: TaskKind): string {
+  switch (kind) {
+    case 'session':
+      return 'This client has a paid session remaining. Book a coached session against this entitlement.'
+    case 'workout':
+      return 'A programmed workout is still owed. Assign one from their program or the library.'
+    case 'meal':
+      return 'Nutrition is still owed on this package. Open the client and assign meals.'
+    case 'checkin':
+      return 'A check-in form is still owed. Assign it to the client.'
+    case 'habit':
+      return 'A habit form is still owed. Assign it to the client.'
+    default:
+      return 'This paid deliverable is still open. Open the client to fulfill it.'
+  }
+}
+
 export async function fetchOpenTasks(trainerId: string, limit = 50): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks')

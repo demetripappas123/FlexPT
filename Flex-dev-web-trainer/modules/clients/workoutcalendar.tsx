@@ -5,7 +5,7 @@ import { WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { ChevronLeft, ChevronRight, Check, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { updateWorkout } from '@/supabase/upserts/upsertworkout'
-import { workoutCalendarChipClass, workoutDeliveryLabel } from '@/supabase/utils/workoutDelivery'
+import { isSoloWorkoutOverdue, workoutCalendarChipClass, workoutDeliveryLabel } from '@/supabase/utils/workoutDelivery'
 
 type WorkoutCalendarProps = {
   workouts: WorkoutWithData[]
@@ -154,13 +154,14 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
           const dayWorkouts = workoutsByDate.get(dateKey) || []
           const today = isToday(date)
           const past = isPast(date)
+          const hasOverdue = dayWorkouts.some((workout) => isSoloWorkoutOverdue(workout))
 
           return (
             <div
               key={dateKey}
               className={`min-h-[120px] p-2 border border-border rounded-md ${
-                today ? 'bg-card border-primary/50' : 'bg-background'
-              } ${past ? 'opacity-60' : ''} ${onDateClick ? 'cursor-pointer hover:bg-card transition-colors' : ''}`}
+                today ? 'bg-card border-foreground/30' : 'bg-background'
+              } ${past && !hasOverdue ? 'opacity-60' : ''} ${onDateClick ? 'cursor-pointer hover:bg-card transition-colors' : ''}`}
               onClick={() => {
                 // If there are no workouts on this date and onDateClick is provided, trigger it
                 if (dayWorkouts.length === 0 && onDateClick) {
@@ -169,10 +170,10 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
               }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`text-xs font-medium ${today ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {date.getDate()}
                 </span>
-                {today && <span className="text-xs text-primary font-semibold">Today</span>}
+                {today && <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-foreground">Today</span>}
               </div>
 
               <div className="space-y-1">
@@ -189,7 +190,7 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
                       {!workout.completed && (
                         <button
                           onClick={(e) => handleCompleteWorkout(workout.id, e)}
-                          className="ml-1 p-0.5 hover:bg-green-600/30 rounded"
+                          className="ml-1 p-0.5 hover:bg-foreground/10 rounded"
                           title="Mark as completed"
                         >
                           <Check className="h-3 w-3" />
@@ -197,7 +198,7 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
                       )}
                     </div>
                     <div className="text-[10px] opacity-80 mt-0.5 truncate">
-                      {workoutDeliveryLabel(workout)}
+                      {isSoloWorkoutOverdue(workout) ? 'Solo · missed' : workoutDeliveryLabel(workout)}
                     </div>
                     {workout.exercises && workout.exercises.length > 0 && (
                       <div className="text-xs text-muted-foreground mt-0.5">
@@ -212,7 +213,7 @@ export default function WorkoutCalendar({ workouts, onWorkoutUpdate, onWorkoutCl
                       e.stopPropagation()
                       onDateClick(date)
                     }}
-                    className="w-full p-2 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-dashed border-border hover:border-primary/50 flex items-center justify-center gap-1"
+                    className="w-full p-2 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-dashed border-border flex items-center justify-center gap-1"
                     title="Click to assign workout from program"
                   >
                     <Plus className="h-3 w-3" />

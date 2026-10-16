@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 const APPROVED_USERS_NOTICE = '* Only approved users can sign in right now.'
-const LOGIN_BG = '#fafafa'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -82,8 +81,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center text-stone-800"
-        style={{ backgroundColor: LOGIN_BG }}
+        className="flex min-h-screen items-center justify-center bg-background text-foreground"
       >
         Loading...
       </div>
@@ -96,18 +94,17 @@ export default function LoginPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center p-4 text-stone-900"
-      style={{ backgroundColor: LOGIN_BG }}
+      className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground"
     >
-      <div className="w-full max-w-md rounded-lg border border-stone-200/90 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-lg border border-border bg-card p-8">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-3xl font-bold text-brand">FlexPT</h1>
-          <p className="text-stone-600">
+          <h1 className="mb-2 text-[26px] font-normal tracking-tight text-primary">FlexPT</h1>
+          <p className="text-sm text-muted-foreground">
             {isSignUp ? 'Create a new account' : 'Sign in to your account'}
           </p>
         </div>
 
-        <div className="mb-6 flex rounded-lg bg-stone-100 p-1">
+        <div className="mb-6 flex rounded-md bg-secondary p-1">
           <button
             type="button"
             onClick={() => {
@@ -118,8 +115,8 @@ export default function LoginPage() {
             }}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               !isSignUp
-                ? 'bg-brand text-brand-foreground shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             disabled={isLoading}
           >
@@ -134,8 +131,8 @@ export default function LoginPage() {
             }}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               isSignUp
-                ? 'bg-brand text-brand-foreground shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             disabled={isLoading}
           >
@@ -145,7 +142,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -156,11 +153,11 @@ export default function LoginPage() {
             </div>
           )}
 
-          <p className="text-sm leading-relaxed text-stone-600">{APPROVED_USERS_NOTICE}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{APPROVED_USERS_NOTICE}</p>
 
           {isSignUp && (
             <div>
-              <label htmlFor="name" className="mb-1 block text-sm font-medium text-stone-700">
+              <label htmlFor="name" className="mb-1 block text-sm font-medium text-foreground">
                 Name
               </label>
               <Input
@@ -168,7 +165,7 @@ export default function LoginPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
+                className="border-border bg-card text-foreground"
                 placeholder="Your name"
                 disabled
               />
@@ -176,7 +173,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-stone-700">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">
               Email
             </label>
             <Input
@@ -185,14 +182,14 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required={!isSignUp}
-              className="border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus-visible:ring-brand/30"
+              className="border-border bg-card text-foreground"
               placeholder="you@example.com"
               disabled={isLoading || isSignUp}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-stone-700">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-foreground">
               Password
             </label>
             <Input
@@ -201,7 +198,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required={!isSignUp}
-              className="border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus-visible:ring-brand/30"
+              className="border-border bg-card text-foreground"
               placeholder="••••••••"
               disabled={isLoading || isSignUp}
               minLength={6}
@@ -211,7 +208,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={isLoading || isSignUp}
-            className="w-full cursor-pointer bg-brand text-brand-foreground hover:bg-[var(--brand-dark)]"
+            className="w-full"
           >
             {isLoading ? 'Signing in...' : isSignUp ? 'Sign up' : 'Sign in'}
           </Button>

@@ -73,8 +73,9 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
       setMessages(prev => [...prev, assistantMessage])
 
       // If a program was updated/created, refresh the program view
-      if (data.type === 'program' && onProgramUpdated) {
-        onProgramUpdated()
+      if (data.type === 'program') {
+        onProgramUpdated?.()
+        window.dispatchEvent(new CustomEvent('flexpt-program-updated'))
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -91,7 +92,7 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
   }
 
   return (
-    <div className="flex flex-col h-full bg-card border border-border rounded-lg">
+    <div className="flex h-full min-h-0 flex-col bg-card">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <h3 className="text-lg font-semibold text-foreground">Program Generator</h3>

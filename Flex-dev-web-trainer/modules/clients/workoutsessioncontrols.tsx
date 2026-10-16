@@ -12,13 +12,8 @@ import {
 } from '@/supabase/utils/workoutDelivery'
 
 export function WorkoutDeliveryBadge({ workout }: { workout: WorkoutWithData }) {
-  const delivery = workoutDelivery(workout)
-  const className =
-    delivery === 'session'
-      ? 'bg-violet-600/20 text-violet-300 border-violet-500/50'
-      : 'bg-slate-600/20 text-slate-300 border-slate-500/50'
   return (
-    <span className={`px-2 py-0.5 text-[11px] rounded border ${className}`}>
+    <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
       {workoutDeliveryLabel(workout)}
     </span>
   )
@@ -52,7 +47,7 @@ export function WorkoutDeliveryToggle({
         }}
         className={`px-2 py-1 cursor-pointer ${
           delivery === 'session'
-            ? 'bg-violet-600 text-white'
+            ? 'bg-foreground text-background'
             : 'bg-background text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -66,7 +61,7 @@ export function WorkoutDeliveryToggle({
         }}
         className={`px-2 py-1 cursor-pointer ${
           delivery === 'solo'
-            ? 'bg-slate-500 text-white'
+            ? 'bg-foreground text-background'
             : 'bg-background text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -91,7 +86,7 @@ export function ScheduleSessionButton({
     <Button
       type="button"
       size="sm"
-      variant={disabled ? 'outline' : 'default'}
+      variant="outline"
       disabled={disabled}
       title={disabled ? 'No session units remaining. Record a payment first.' : 'Book this assigned workout as a coached session'}
       onClick={(e) => {
@@ -99,11 +94,7 @@ export function ScheduleSessionButton({
         if (disabled) return
         onSchedule(workout)
       }}
-      className={`h-7 text-xs cursor-pointer ${
-        disabled
-          ? 'opacity-60'
-          : 'bg-violet-600 hover:bg-violet-500 text-white'
-      }`}
+      className={`h-8 text-xs cursor-pointer ${disabled ? 'opacity-60' : ''}`}
     >
       {disabled ? 'No session units' : 'Schedule session'}
     </Button>

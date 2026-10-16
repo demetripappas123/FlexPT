@@ -15,7 +15,7 @@ export default function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange('list')}
         className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
           view === 'list'
-            ? 'bg-primary text-primary-foreground'
+            ? 'bg-foreground text-background'
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -25,7 +25,7 @@ export default function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange('calendar')}
         className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
           view === 'calendar'
-            ? 'bg-primary text-primary-foreground'
+            ? 'bg-foreground text-background'
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >

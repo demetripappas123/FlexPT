@@ -40,7 +40,7 @@ export default function AverageBookingsPerDayChart({
         {loading ? (
           <div className="h-8 bg-muted rounded animate-pulse"></div>
         ) : (
-          <p className="text-2xl font-bold text-primary">{averageBookings.toFixed(1)}</p>
+          <p className="text-2xl font-bold text-foreground">{averageBookings.toFixed(1)}</p>
         )}
       </>
     )
@@ -54,7 +54,7 @@ export default function AverageBookingsPerDayChart({
           <div className="text-muted-foreground">Loading...</div>
         ) : (
           <div className="text-center w-full">
-            <div className="text-5xl font-bold text-primary">{averageBookings.toFixed(1)}</div>
+            <div className="text-5xl font-bold text-foreground">{averageBookings.toFixed(1)}</div>
             <div className="text-xs text-muted-foreground mt-2 mb-4">
               Average per day ({timeframe === 'week' ? 'past 7 days' : 'past 30 days'})
             </div>
@@ -63,7 +63,7 @@ export default function AverageBookingsPerDayChart({
                 onClick={() => setTimeframe('week')}
                 className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
                   timeframe === 'week'
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-foreground text-background'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
@@ -73,7 +73,7 @@ export default function AverageBookingsPerDayChart({
                 onClick={() => setTimeframe('month')}
                 className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
                   timeframe === 'month'
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-foreground text-background'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >

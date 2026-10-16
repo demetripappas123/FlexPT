@@ -13,6 +13,7 @@ import {
   complianceTooltip,
   ComplianceScore,
 } from '../utils/complianceScore'
+import { isSoloWorkoutOverdue } from '../utils/workoutDelivery'
 
 export type ClientRosterStatus = 'active' | 'paused' | 'trial' | 'ending' | 'inactive'
 export type ClientRosterFlag =
@@ -21,6 +22,7 @@ export type ClientRosterFlag =
   | 'expiring'
   | 'unscheduled'
   | 'checkin_overdue'
+  | 'solo_overdue'
 export type ClientRosterFilter = 'all' | 'active' | 'onboarding' | 'renewal' | 'at_risk' | 'inactive'
 
 export const ONBOARDING_WINDOW_DAYS = 21
@@ -38,6 +40,7 @@ export const CLIENT_ROSTER_FILTERS: { id: ClientRosterFilter; label: string }[] 
 export type ClientRosterRow = {
   id: string
   name: string
+  avatarPath: string | null
   number: string | null
   status: ClientRosterStatus
   coachName: string | null
@@ -61,6 +64,7 @@ export type ClientRosterRow = {
   complianceLabel: string
   inOnboarding: boolean
   atRisk: boolean
+  overdueSoloCount: number
 }
 
 export function matchesClientRosterFilter(row: ClientRosterRow, filter: ClientRosterFilter): boolean {
@@ -105,6 +109,7 @@ type WorkoutRow = {
   completed: boolean | null
   workout_date: string | null
   created_at: string
+  delivery?: string | null
 }
 type TaskRow = {
   person_id: string
@@ -237,7 +242,7 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
     fetchPayments(trainerId),
     fetchServices(),
     supabase.from('trainers').select('id, name'),
-    supabase.from('workouts').select('person_id, completed, workout_date, created_at'),
+    supabase.from('workouts').select('person_id, completed, workout_date, created_at, delivery'),
     supabase
       .from('tasks')
       .select('person_id, kind, status, due_date, completed_at')
@@ -431,6 +436,10 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
     if (status === 'ending') flags.push('expiring')
     if (sessionsRemaining > 0 && !nextSession) flags.push('unscheduled')
     if (checkInOverdue) flags.push('checkin_overdue')
+    const overdueSoloCount = (workoutsByPerson.get(client.id) ?? []).filter((workout) =>
+      isSoloWorkoutOverdue(workout)
+    ).length
+    if (overdueSoloCount > 0) flags.push('solo_overdue')
 
     const compliance = calculateComplianceScore({
       workouts: workoutsByPerson.get(client.id) ?? [],
@@ -467,12 +476,14 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
         flags.includes('payment_failed') ||
         flags.includes('past_due') ||
         flags.includes('checkin_overdue') ||
+        flags.includes('solo_overdue') ||
         (compliance.percent != null && compliance.percent < AT_RISK_COMPLIANCE_THRESHOLD)
       )
 
     return {
       id: client.id,
       name: client.name,
+      avatarPath: client.avatar_path ?? null,
       number: client.number ?? null,
       status,
       coachName: client.trainer_id ? trainerNameById.get(client.trainer_id) ?? null : null,
@@ -498,6 +509,7 @@ export async function fetchClientRoster(trainerId: string): Promise<ClientRoster
       complianceLabel: complianceTooltip(compliance),
       inOnboarding,
       atRisk,
+      overdueSoloCount,
     }
   })
 

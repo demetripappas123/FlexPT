@@ -1,17 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  CartesianGrid,
-  Cell,
-} from 'recharts'
+import ReactECharts from 'echarts-for-react'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { useTheme } from '@/context/themecontext'
 import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
@@ -31,26 +21,22 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
   const { variables } = useTheme()
   const [daysView, setDaysView] = useState<30 | 60 | 90>(30)
 
-  // Extract number from numrange string (for completed workouts, should be [x,x] format)
   const extractNumberFromRange = (rangeStr: string | null | undefined): number => {
     if (!rangeStr) return 0
-    
+
     const formatted = formatRangeDisplay(rangeStr)
     if (!formatted) return 0
-    
-    // If it's a single number (no dash), use that
+
     if (!formatted.includes('-')) {
       const num = parseFloat(formatted)
       return isNaN(num) ? 0 : num
     }
-    
-    // If it's a range like "8-12", use the lower bound for completed workouts
+
     const parts = formatted.split('-')
     const lower = parseFloat(parts[0]?.trim() || '0')
     return isNaN(lower) ? 0 : lower
   }
 
-  // Calculate volume for each session
   const calculateSessionVolume = (session: SessionWithExercises): number => {
     if (!session.exercises || session.exercises.length === 0) return 0
 
@@ -67,17 +53,13 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
     return totalVolume
   }
 
-  // Process data for the selected time period
   const chartData = useMemo(() => {
     const now = new Date()
     const cutoffDate = new Date(now)
     cutoffDate.setDate(cutoffDate.getDate() - daysView)
 
-    // Filter sessions within the time period and calculate volume
-    // Use started_at which should contain workout_date from the workout
     const sessionsWithVolume = sessions
       .filter((session) => {
-        // started_at should contain workout_date from the workout mapping
         if (!session.started_at) return false
         const sessionDate = new Date(session.started_at)
         if (isNaN(sessionDate.getTime())) return false
@@ -85,31 +67,28 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
       })
       .map((session) => {
         const volume = calculateSessionVolume(session)
-        // started_at contains workout_date from the workout
         const date = new Date(session.started_at!)
         return {
-          date: date.toISOString().split('T')[0], // YYYY-MM-DD
+          date: date.toISOString().split('T')[0],
           volume,
           timestamp: date.getTime(),
         }
       })
-      .filter((item) => item.volume > 0) // Only include sessions with volume
+      .filter((item) => item.volume > 0)
       .sort((a, b) => a.timestamp - b.timestamp)
 
-    // Group by date and sum volumes for the same day
     const volumeByDate = new Map<string, number>()
     for (const item of sessionsWithVolume) {
       const existing = volumeByDate.get(item.date) || 0
       volumeByDate.set(item.date, existing + item.volume)
     }
 
-    // Convert to array and format for chart
     const sortedData = Array.from(volumeByDate.entries())
       .map(([date, volume]) => {
         const dateObj = new Date(date)
         return {
           date,
-          volume: Math.round(volume), // Round to nearest whole number
+          volume: Math.round(volume),
           formattedDate: dateObj.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -118,26 +97,21 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    // Add candlestick coloring based on trend
+    let previousColor = '#1f8a65'
     const data: VolumeDataPoint[] = sortedData.map((point, index) => {
-      // Determine color based on trend (candlestick style)
-      if (index === 0) {
-        // First point defaults to green
-        return { ...point, color: '#10b981' }
+      let color = '#1f8a65'
+      if (index > 0) {
+        const prevVolume = sortedData[index - 1].volume
+        if (point.volume > prevVolume) {
+          color = '#1f8a65'
+        } else if (point.volume < prevVolume) {
+          color = '#cf2d56'
+        } else {
+          color = previousColor
+        }
       }
-      
-      const prevVolume = sortedData[index - 1].volume
-      if (point.volume > prevVolume) {
-        // Increasing - green
-        return { ...point, color: '#10b981' }
-      } else if (point.volume < prevVolume) {
-        // Decreasing - red (first bar in decreasing trend)
-        return { ...point, color: '#ef4444' }
-      } else {
-        // Same volume - keep previous color
-        const prevColor = data[index - 1]?.color || '#10b981'
-        return { ...point, color: prevColor }
-      }
+      previousColor = color
+      return { ...point, color }
     })
 
     return data
@@ -150,9 +124,55 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
     return value.toString()
   }
 
+  const option = useMemo(
+    () => ({
+      grid: { left: 8, right: 12, top: 16, bottom: 8, containLabel: true },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: variables.card,
+        borderColor: variables.border,
+        textStyle: { color: variables.foreground, fontSize: 12 },
+        formatter: (params: Array<{ name: string; value: number }>) => {
+          const item = params?.[0]
+          if (!item) return ''
+          return `${item.name}<br/>Volume: ${Number(item.value).toLocaleString()} lbs`
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: chartData.map((row) => row.formattedDate),
+        axisLine: { lineStyle: { color: variables.border } },
+        axisTick: { show: false },
+        axisLabel: { color: variables.mutedForeground, fontSize: 11, rotate: 45 },
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: variables.border, type: 'dashed' } },
+        axisLabel: {
+          color: variables.mutedForeground,
+          fontSize: 11,
+          formatter: (value: number) => formatVolume(value),
+        },
+      },
+      series: [
+        {
+          type: 'bar',
+          barMaxWidth: 20,
+          data: chartData.map((row) => ({
+            value: row.volume,
+            itemStyle: { color: row.color, borderRadius: [2, 2, 0, 0] },
+          })),
+        },
+      ],
+    }),
+    [chartData, variables]
+  )
+
   return (
     <div className="space-y-4">
-      {/* View Toggle Buttons */}
       <div className="flex gap-2">
         <button
           onClick={() => setDaysView(30)}
@@ -186,7 +206,6 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
         </button>
       </div>
 
-      {/* Chart */}
       <div className="bg-background border border-border rounded-lg p-4">
         <h3 className="text-lg font-semibold text-foreground mb-4">Total Workout Volume</h3>
         {chartData.length === 0 ? (
@@ -194,51 +213,9 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
             <p>No workout data available for the selected period.</p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={variables.border} />
-              <XAxis
-                dataKey="formattedDate"
-                stroke={variables.mutedForeground}
-                style={{ fontSize: '12px' }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis
-                stroke={variables.mutedForeground}
-                style={{ fontSize: '12px' }}
-                tickFormatter={formatVolume}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: variables.card,
-                  border: `1px solid ${variables.border}`,
-                  borderRadius: '6px',
-                  color: variables.foreground,
-                }}
-                formatter={(value: number) => [
-                  `${value.toLocaleString()} lbs`,
-                  'Volume',
-                ]}
-                labelStyle={{ color: variables.foreground }}
-                cursor={{ fill: 'transparent' }}
-              />
-              <Bar
-                dataKey="volume"
-                radius={[2, 2, 0, 0]}
-                style={{ cursor: 'pointer' }}
-                barSize={20}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ReactECharts option={option} style={{ height: 300, width: '100%' }} opts={{ renderer: 'svg' }} notMerge />
         )}
       </div>
     </div>
   )
 }
-
