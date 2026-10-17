@@ -345,7 +345,7 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="w-full">
-        <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+        <h1 className="text-[26px] font-normal tracking-tight mb-6">Dashboard</h1>
         <div className="flex items-center justify-center h-64">
           <div className="text-destructive">{error}</div>
         </div>
@@ -442,12 +442,12 @@ export default function DashboardPage() {
           loading={loadingQuickMetrics}
         />
         <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Bookings</h3>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">Bookings</h3>
           {averageBookings !== null ? (
-            <p className="text-2xl font-normal tracking-tight text-foreground">{averageBookings.toLocaleString()}</p>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-2xl font-normal tracking-tight text-foreground">{averageBookings.toLocaleString()}</p>
+            </div>
           ) : (
             <div className="h-8 bg-muted rounded animate-pulse" />
           )}
@@ -455,7 +455,7 @@ export default function DashboardPage() {
         <div className="bg-card border border-border rounded-lg p-4 col-span-2 md:col-span-1">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Avg Bookings/Day</h3>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-primary" />
           </div>
           {user?.id ? (
             <AverageBookingsPerDayChart compact trainerId={user.id} />
@@ -482,7 +482,7 @@ export default function DashboardPage() {
           <section className="flex-1 min-w-0 bg-card border border-border rounded-lg p-3 flex flex-col min-h-[300px]">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 min-w-0">
-                <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ListTodo className="h-4 w-4 text-primary shrink-0" />
                 <h2 className="text-sm font-semibold truncate">Tasks</h2>
                 {!loadingTasks && (
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
@@ -517,7 +517,7 @@ export default function DashboardPage() {
           <section className="flex-1 min-w-0 bg-card border border-border rounded-lg p-3 flex flex-col min-h-[300px]">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 min-w-0">
-                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Calendar className="h-4 w-4 text-primary shrink-0" />
                 <h2 className="text-sm font-semibold truncate">Sessions</h2>
                 {!loadingSessions && (
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
@@ -558,8 +558,9 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium truncate group-hover:text-foreground transition-colors">
                           {session.personName || 'Unknown'}
                         </p>
-                        <p className={`text-[11px] truncate ${session.missed === 'suggested' ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                          {session.missed === 'suggested' ? 'Looks missed' : (when.clock ?? when.relative)}
+                        <p className={`flex items-center gap-1 text-[11px] truncate ${session.missed === 'suggested' ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                          <Calendar className="h-3 w-3 shrink-0 text-primary" />
+                          <span className="truncate">{session.missed === 'suggested' ? 'Looks missed' : (when.clock ?? when.relative)}</span>
                         </p>
                       </div>
                     </Link>

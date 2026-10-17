@@ -50,7 +50,7 @@ export default function AddProgramDialog({ children }: AddProgramDialogProps) {
       {isDialogOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card p-6 rounded-lg shadow-lg w-96 border border-border">
-            <h2 className="text-xl font-bold text-foreground mb-4">Create New Program</h2>
+            <h2 className="text-lg font-normal tracking-tight text-foreground mb-4">Create New Program</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label className="block text-muted-foreground mb-1">Program Name</label>

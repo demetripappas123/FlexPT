@@ -1,5 +1,6 @@
 export type DateRange = 'today' | 'yesterday' | 'weekly' | 'monthly'
 export type DashboardPeriod = 'day' | 'week' | 'month' | 'custom'
+export type ProspectPeriod = DashboardPeriod | 'lifetime'
 
 export interface DateRangeBounds {
   start: Date
@@ -84,6 +85,20 @@ export function dashboardPeriodToChartRange(period: DashboardPeriod): DateRange 
   if (period === 'day') return 'today'
   if (period === 'week') return 'weekly'
   return 'monthly'
+}
+
+export function prospectPeriodBounds(
+  period: ProspectPeriod,
+  customStart?: string,
+  customEnd?: string
+): DateRangeBounds | null {
+  if (period === 'lifetime') return null
+  return dashboardPeriodBounds(period, customStart, customEnd)
+}
+
+export function formatProspectPeriod(bounds: DateRangeBounds | null, period: ProspectPeriod): string {
+  if (period === 'lifetime' || !bounds) return 'Lifetime'
+  return formatDashboardPeriod(bounds, period)
 }
 
 export function formatDashboardPeriod(bounds: DateRangeBounds, period: DashboardPeriod): string {

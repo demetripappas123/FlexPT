@@ -49,23 +49,23 @@ export default function TrainerGoalsPage() {
     loadTrainerGoal()
   }, [params.id])
 
-  if (loading) return <p className="text-gray-300">Loading...</p>
-  if (!trainerId || !trainerGoal) return <p className="text-gray-300">Trainer goals not found.</p>
+  if (loading) return <p className="text-muted-foreground">Loading...</p>
+  if (!trainerId || !trainerGoal) return <p className="text-muted-foreground">Trainer goals not found.</p>
 
   return (
-    <div className="p-6 space-y-4 bg-[#111111] min-h-screen text-white">
+    <div className="space-y-4 text-foreground">
       <button
         onClick={() => router.back()}
-        className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040] cursor-pointer"
+        className="px-3 py-1 bg-secondary rounded-md hover:bg-secondary/80 cursor-pointer"
       >
         ← Back
       </button>
 
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">Business Goals</h1>
+        <h1 className="text-[26px] font-normal tracking-tight">Business Goals</h1>
       </div>
 
-      <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+      <div className="p-4 bg-card border border-border rounded-lg">
         <TrainerGoals trainerId={trainerId} />
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { Clock } from 'lucide-react'
 
 type HourlyAverageChartProps = {
   hourlyAverage: number | null
@@ -17,8 +18,9 @@ export default function HourlyAverageChart({ hourlyAverage }: HourlyAverageChart
   return (
     <div className="w-full h-full flex flex-col items-center justify-center">
       <div className="text-center">
-        <div className="text-2xl font-normal tracking-tight text-foreground">
-          {hourlyAverage == null ? 'N/A' : formatCurrency(hourlyAverage)}
+        <div className="flex items-center justify-center gap-2 text-2xl font-normal tracking-tight text-foreground">
+          <Clock className="h-4 w-4 text-primary shrink-0" />
+          <span>{hourlyAverage == null ? 'N/A' : formatCurrency(hourlyAverage)}</span>
         </div>
       </div>
       <h3 className="text-xs font-semibold text-[var(--text-primary)] mt-1">Hourly Rate</h3>

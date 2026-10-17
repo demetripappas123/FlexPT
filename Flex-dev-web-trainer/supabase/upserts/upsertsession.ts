@@ -14,6 +14,7 @@ export interface SessionFormData {
   converted?: boolean
   status?: SessionStatus
   missed?: SessionMissed
+  rejection_reason?: string | null
 }
 
 export interface SessionExerciseFormData {
@@ -82,6 +83,10 @@ export async function upsertSession(session: SessionFormData): Promise<Session> 
   }
   if (session.missed !== undefined) {
     sessionData.missed = session.missed
+  }
+  if (session.rejection_reason !== undefined) {
+    const reason = session.rejection_reason?.trim()
+    sessionData.rejection_reason = reason ? reason : null
   }
 
   if (session.id) {

@@ -167,7 +167,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
               onClick={() => setDelivery("session")}
               className={`px-3 py-1.5 cursor-pointer ${
                 delivery === "session"
-                  ? "bg-violet-600 text-white"
+                  ? "bg-foreground text-background"
                   : "bg-background text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -178,7 +178,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
               onClick={() => setDelivery("solo")}
               className={`px-3 py-1.5 cursor-pointer ${
                 delivery === "solo"
-                  ? "bg-slate-500 text-white"
+                  ? "bg-foreground text-background"
                   : "bg-background text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -289,7 +289,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                          updateExercise(index, "sets", e.target.value);
                        }}
                        placeholder="e.g. 3 or 2-4"
-                       className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                       className="bg-card text-foreground border-border placeholder:text-muted-foreground h-9 text-sm"
                      />
                    </div>
 
@@ -302,7 +302,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                          updateExercise(index, "reps", e.target.value);
                        }}
                        placeholder="e.g. 8 or 6-10"
-                       className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                       className="bg-card text-foreground border-border placeholder:text-muted-foreground h-9 text-sm"
                      />
                    </div>
 
@@ -315,7 +315,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                         updateExercise(index, "rir", e.target.value === "" ? null : e.target.value)
                       }
                       placeholder="e.g. 2 or 1-3"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                      className="bg-card text-foreground border-border placeholder:text-muted-foreground h-9 text-sm"
                     />
                   </div>
 
@@ -328,7 +328,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                         updateExercise(index, "rpe", e.target.value === "" ? null : e.target.value)
                       }
                       placeholder="e.g. 7 or 6-8"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                      className="bg-card text-foreground border-border placeholder:text-muted-foreground h-9 text-sm"
                     />
                   </div>
 

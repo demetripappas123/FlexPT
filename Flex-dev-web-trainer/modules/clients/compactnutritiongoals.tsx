@@ -294,7 +294,7 @@ export default function CompactNutritionGoals({
             {currentGoal && (
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md cursor-pointer text-white text-sm"
+                className="px-4 py-2 bg-destructive hover:bg-destructive/90 rounded-md cursor-pointer text-white text-sm"
               >
                 Delete
               </button>

@@ -164,20 +164,20 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
               </span>
             </div>
             <div>
-              <span className="text-gray-400">Protein:</span>{' '}
-              <span className="text-white font-medium">
+              <span className="text-muted-foreground">Protein:</span>{' '}
+              <span className="text-foreground font-medium">
                 {currentGoal?.protein_goal ? `${currentGoal.protein_goal}g` : 'N/A'}
               </span>
             </div>
             <div>
-              <span className="text-gray-400">Carbs:</span>{' '}
-              <span className="text-white font-medium">
+              <span className="text-muted-foreground">Carbs:</span>{' '}
+              <span className="text-foreground font-medium">
                 {currentGoal?.carbs_goal ? `${currentGoal.carbs_goal}g` : 'N/A'}
               </span>
             </div>
             <div>
-              <span className="text-gray-400">Fats:</span>{' '}
-              <span className="text-white font-medium">
+              <span className="text-muted-foreground">Fats:</span>{' '}
+              <span className="text-foreground font-medium">
                 {currentGoal?.fats_goal ? `${currentGoal.fats_goal}g` : 'N/A'}
               </span>
             </div>
@@ -192,7 +192,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigateMonth('prev')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+              className="px-2 py-1 bg-secondary hover:bg-secondary/80 rounded-md cursor-pointer text-foreground"
             >
               ←
             </button>
@@ -201,7 +201,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
             </h3>
             <button
               onClick={() => navigateMonth('next')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+              className="px-2 py-1 bg-secondary hover:bg-secondary/80 rounded-md cursor-pointer text-foreground"
             >
               →
             </button>

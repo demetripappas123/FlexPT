@@ -19,6 +19,7 @@ export interface Person {
   auth_user_id?: string | null
   stripe_customer_id?: string | null
   avatar_path?: string | null
+  lead_bucket?: 'hot' | 'cold' | null
 }
 
 export function personIsInOnboarding(status: PersonOnboardingStatus | null | undefined): boolean {

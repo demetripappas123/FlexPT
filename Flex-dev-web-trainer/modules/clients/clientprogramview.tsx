@@ -32,7 +32,6 @@ import { workoutDeliveryCardClass } from '@/supabase/utils/workoutDelivery'
 import {
   ScheduleSessionButton,
   WorkoutDeliveryBadge,
-  WorkoutDeliveryToggle,
 } from '@/modules/clients/workoutsessioncontrols'
 
 type InnerTab = 'workouts' | 'meals' | 'checkins' | 'goals'
@@ -266,7 +265,7 @@ export default function ClientProgramView({
               {innerTab === 'workouts' && (
                 <div className="space-y-4">
                   <p className="text-xs text-muted-foreground">
-                    Violet = coached session. Orange = solo. {sessionUnitsRemaining} session unit
+                    Session asks for a time. Solo stays on the assigned day. {sessionUnitsRemaining} session unit
                     {sessionUnitsRemaining === 1 ? '' : 's'} remaining.
                   </p>
                   {weekGroups.length === 0 ? (
@@ -299,7 +298,6 @@ export default function ClientProgramView({
                                 ) : (
                                   <span className="text-xs text-muted-foreground">Assigned</span>
                                 )}
-                                <WorkoutDeliveryToggle workout={workout} onChanged={onReload} />
                                 {onScheduleSession && (
                                   <ScheduleSessionButton
                                     workout={workout}

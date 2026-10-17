@@ -25,7 +25,7 @@ export default function CloseRateChart({ closeRate, compact = false }: CloseRate
     <div className="flex flex-col items-center justify-center">
       <div className="relative" style={{ width: size, height: size }}>
         <ReactECharts option={option} style={{ width: size, height: size }} opts={{ renderer: 'svg' }} notMerge />
-        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center font-bold text-foreground ${compact ? 'text-[10px]' : 'text-sm'}`}>
+        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center font-medium tracking-tight text-foreground ${compact ? 'text-[10px]' : 'text-sm'}`}>
           {unavailable ? 'N/A' : `${value.toFixed(compact ? 0 : 1)}%`}
         </div>
       </div>

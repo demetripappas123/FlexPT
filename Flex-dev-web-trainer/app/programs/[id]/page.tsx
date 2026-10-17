@@ -205,7 +205,7 @@ export default function ProgramPage() {
 
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{program.name}</h1>
+            <h1 className="text-[22px] font-normal tracking-tight text-foreground">{program.name}</h1>
             {program.description && (
               <p className="text-muted-foreground">{program.description}</p>
             )}
@@ -246,8 +246,8 @@ export default function ProgramPage() {
                       key={day.id}
                       className={`p-3 border rounded-md bg-background min-w-[200px] relative ${
                         day.delivery === 'session'
-                          ? 'border-violet-500/50 border-l-4 border-l-violet-500'
-                          : 'border-border border-l-4 border-l-slate-400'
+                          ? 'border-foreground/30'
+                          : 'border-border'
                       }`}
                     >
                       <div className="absolute top-2 right-2 flex gap-2">
@@ -274,11 +274,7 @@ export default function ProgramPage() {
                           await updateDayDelivery(day.id, next)
                           refreshWeeks()
                         }}
-                        className={`mb-2 px-2 py-0.5 text-[11px] rounded border cursor-pointer ${
-                          day.delivery === 'session'
-                            ? 'bg-violet-600/20 text-violet-300 border-violet-500/50'
-                            : 'bg-slate-600/20 text-slate-300 border-slate-500/50'
-                        }`}
+                        className="mb-2 px-2 py-0.5 text-[11px] rounded-full border border-border bg-secondary text-foreground cursor-pointer"
                         title="Toggle session vs solo"
                       >
                         {day.delivery === 'session' ? 'Session' : 'Solo'}

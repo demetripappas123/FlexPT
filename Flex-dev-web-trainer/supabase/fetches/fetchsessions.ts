@@ -20,6 +20,7 @@ export interface Session {
   converted: boolean
   status: SessionStatus
   missed: SessionMissed
+  rejection_reason?: string | null
 }
 
 export interface SessionWithExercises extends Session {

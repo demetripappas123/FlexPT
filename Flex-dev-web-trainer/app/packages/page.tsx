@@ -33,7 +33,7 @@ export default function PackagesPage() {
     return (
       <div className="p-8 bg-background text-foreground min-h-screen">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Packages</h1>
+          <h1 className="text-[26px] font-normal tracking-tight text-foreground">Packages</h1>
         </div>
         <p className="text-muted-foreground">Loading packages...</p>
       </div>
@@ -43,7 +43,7 @@ export default function PackagesPage() {
   return (
     <div className="p-8 bg-background text-foreground min-h-screen">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Packages</h1>
+        <h1 className="text-[26px] font-normal tracking-tight text-foreground">Packages</h1>
         <p className="text-muted-foreground mt-2">Manage your training packages</p>
       </div>
       <PackageList packages={packages} onPackagesUpdate={loadPackages} />

@@ -104,7 +104,7 @@ export default function TrainerChatThreadPage() {
         <Link href="/chat" className="text-sm text-muted-foreground hover:text-foreground">
           ← All chats
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">{personName}</h1>
+        <h1 className="mt-2 text-[22px] font-normal tracking-tight">{personName}</h1>
         <p className="text-sm text-muted-foreground">Client thread — only you and this client.</p>
       </div>
 

@@ -585,7 +585,7 @@ export default function StartSession({
             <Button
               onClick={handleFinishSession}
               disabled={loading}
-              className="bg-green-500 hover:bg-green-600 text-white cursor-pointer"
+              className="cursor-pointer"
             >
               {loading ? 'Finishing...' : 'Finish'}
             </Button>
@@ -886,7 +886,7 @@ export default function StartSession({
                       title={set.completed ? 'Uncheck set' : 'Complete set'}
                       className={`h-9 w-9 rounded-md flex items-center justify-center cursor-pointer border ${
                         set.completed
-                          ? 'bg-green-500 border-green-500 text-white'
+                          ? 'bg-foreground border-foreground text-background'
                           : 'border-border bg-card text-muted-foreground hover:border-green-500 hover:text-green-500'
                       } disabled:opacity-50`}
                     >
@@ -940,7 +940,7 @@ export default function StartSession({
           <Button
             onClick={handleFinishSession}
             disabled={loading}
-            className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
+            className="w-full cursor-pointer"
           >
             {loading ? 'Finishing...' : 'Finish Session'}
           </Button>

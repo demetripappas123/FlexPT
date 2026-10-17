@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 export default function ProgramsPage() {
   return (
     <div className="w-full h-full bg-background text-foreground p-6">
-      <h1 className="text-3xl font-bold text-foreground mb-4">
+      <h1 className="text-[26px] font-normal tracking-tight text-foreground mb-4">
         Programs
       </h1>
       <div className="mb-4 flex justify-start">

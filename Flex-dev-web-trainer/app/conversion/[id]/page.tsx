@@ -12,6 +12,12 @@ import { useAuth } from '@/context/authcontext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { upsertPersonLogin } from '@/supabase/auth/person-login'
+import { fetchClientSessions, Session } from '@/supabase/fetches/fetchsessions'
+import {
+  assignConversionRoles,
+  completedLeadSessions,
+  saveConversionSessions,
+} from '@/supabase/utils/conversionSessions'
 
 export default function ConversionPage() {
   const params = useParams()
@@ -42,6 +48,8 @@ export default function ConversionPage() {
   const [loginEmail, setLoginEmail] = useState('')
   const [loginUsername, setLoginUsername] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [leadSessions, setLeadSessions] = useState<Session[]>([])
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const loadPerson = async () => {
@@ -52,9 +60,10 @@ export default function ConversionPage() {
 
       try {
         // Batch fetch person and packages in parallel
-        const [personData, packagesData] = await Promise.all([
+        const [personData, packagesData, sessions] = await Promise.all([
           fetchPersonById(id),
           fetchPackages(),
+          fetchClientSessions(id),
         ])
 
         if (!personData) {
@@ -70,6 +79,9 @@ export default function ConversionPage() {
 
         setPerson(personData)
         setPackages(packagesData)
+        const leads = completedLeadSessions(sessions)
+        setLeadSessions(leads)
+        setSelectedSessionIds(new Set(leads.map((session) => session.id)))
         setLoginEmail(personData.email ?? '')
         setLoginUsername(personData.username ?? '')
       } catch (err) {
@@ -158,13 +170,23 @@ export default function ConversionPage() {
     
     try {
       // Create the contract (copies package fields into contract row)
-      await upsertContract({
+      const contract = await upsertContract({
         person_id: person.id,
         trainer_id: user?.id ?? null,
         start_date: firstBillingDate,
         package: packageToUse,
         cost_per_bill_cycle: unitCost ? parseFloat(unitCost) : null,
       })
+
+      if (user?.id && contract?.id && selectedSessionIds.size > 0) {
+        await saveConversionSessions({
+          contractId: contract.id,
+          personId: person.id,
+          trainerId: user.id,
+          sessions: leadSessions,
+          selectedIds: selectedSessionIds,
+        })
+      }
 
       // Convert prospect to client and link the package
       await upsertClient({
@@ -229,7 +251,7 @@ export default function ConversionPage() {
   return (
     <main className="p-8 text-foreground bg-background min-h-screen">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Convert Prospect to Client</h1>
+        <h1 className="text-[26px] font-normal tracking-tight mb-6">Convert Prospect to Client</h1>
 
         <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Prospect Information</h2>
@@ -250,11 +272,56 @@ export default function ConversionPage() {
           </div>
         </div>
 
-        <div className="bg-green-600/20 border border-green-600/50 rounded-lg p-4 mb-6">
-          <p className="text-green-400">
-            <strong>Info:</strong> Assigning a package is what converts them — not completing a session.
-            Pick or create a package and contract below. Later we can tag which consult closed them.
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-1 text-foreground">Sessions that led here</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Completed prospect, intro, and follow-up sessions are checked. The latest one is the close. Uncheck any that did not matter.
           </p>
+          {leadSessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No completed lead sessions yet. You can still assign the package.</p>
+          ) : (
+            <ul className="space-y-2">
+              {leadSessions.map((session) => {
+                const checked = selectedSessionIds.has(session.id)
+                const roles = assignConversionRoles(
+                  leadSessions.map((row) => row.id),
+                  selectedSessionIds
+                )
+                const role = roles.find((entry) => entry.sessionId === session.id)?.role
+                const when = session.start_time || session.started_at || session.created_at
+                return (
+                  <li key={session.id}>
+                    <label className="flex items-center gap-3 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          setSelectedSessionIds((current) => {
+                            const next = new Set(current)
+                            if (event.target.checked) next.add(session.id)
+                            else next.delete(session.id)
+                            return next
+                          })
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{session.type}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {new Date(when).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                      </span>
+                      {role && (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
+                          {role}
+                        </span>
+                      )}
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
 
         {/* Contract Form */}
@@ -495,7 +562,7 @@ export default function ConversionPage() {
           <Button
             onClick={handleConvertToClient}
             disabled={converting}
-            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white cursor-pointer disabled:bg-green-400 disabled:cursor-not-allowed"
+            className="px-6 py-3 cursor-pointer disabled:cursor-not-allowed"
           >
             {converting ? 'Converting...' : 'Convert to Client'}
           </Button>

@@ -44,7 +44,7 @@ export async function suggestMissedSessions(sessions: Session[], now = new Date(
   )
 }
 
-export async function markSessionMissed(session: Session, withCharge: boolean): Promise<Session> {
+export async function markSessionMissed(session: Session, withCharge: boolean, rejectionReason?: string | null): Promise<Session> {
   return upsertSession({
     id: session.id,
     type: session.type,
@@ -58,10 +58,11 @@ export async function markSessionMissed(session: Session, withCharge: boolean): 
     converted: session.converted,
     status: withCharge ? 'canceled_with_charge' : 'canceled_no_charge',
     missed: 'missed',
+    rejection_reason: rejectionReason,
   })
 }
 
-export async function markSessionCancelled(session: Session, withCharge: boolean): Promise<Session> {
+export async function markSessionCancelled(session: Session, withCharge: boolean, rejectionReason?: string | null): Promise<Session> {
   return upsertSession({
     id: session.id,
     type: session.type,
@@ -75,5 +76,6 @@ export async function markSessionCancelled(session: Session, withCharge: boolean
     converted: session.converted,
     status: withCharge ? 'canceled_with_charge' : 'canceled_no_charge',
     missed: 'cancelled',
+    rejection_reason: rejectionReason,
   })
 }

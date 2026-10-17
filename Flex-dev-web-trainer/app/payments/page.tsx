@@ -120,19 +120,19 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-white bg-[#111111] min-h-screen">
-        <p className="text-gray-300">Loading...</p>
+      <div className="text-foreground">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className="p-8 text-white bg-[#111111] min-h-screen">
+    <div className="text-foreground">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Payments Test UI</h1>
+        <h1 className="text-[26px] font-normal tracking-tight">Payments Test UI</h1>
         <Button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+          className="cursor-pointer"
         >
           <Plus className="h-4 w-4 mr-2" />
           Record payment
@@ -140,18 +140,18 @@ export default function PaymentsPage() {
       </div>
 
       {showAddForm && (
-        <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Record organization payment</h2>
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-normal tracking-tight mb-4">Record organization payment</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-400">Client *</label>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Client *</label>
               <select
                 value={selectedPersonId}
                 onChange={(e) => {
                   setSelectedPersonId(e.target.value)
                   setSelectedContractId('')
                 }}
-                className="w-full px-3 py-2 rounded-md bg-[#111111] border border-[#2a2a2a] text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
               >
                 <option value="">Select a client</option>
@@ -164,12 +164,12 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-400">Contract *</label>
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">Contract *</label>
               <select
                 value={selectedContractId}
                 onChange={(e) => setSelectedContractId(e.target.value)}
                 disabled={!selectedPersonId}
-                className="w-full px-3 py-2 rounded-md bg-[#111111] border border-[#2a2a2a] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                 required
               >
                 <option value="">Select contract</option>
@@ -183,7 +183,7 @@ export default function PaymentsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-400">Amount ($) *</label>
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">Amount ($) *</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -191,17 +191,17 @@ export default function PaymentsPage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                  className="bg-card text-foreground border-border placeholder:text-muted-foreground"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-400">Processed date *</label>
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">Processed date *</label>
                 <Input
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="bg-[#111111] text-white border-[#2a2a2a]"
+                  className="bg-card text-foreground border-border"
                   required
                 />
               </div>
@@ -211,7 +211,7 @@ export default function PaymentsPage() {
               <Button
                 onClick={handleAddPayment}
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700 text-white cursor-pointer disabled:bg-green-400"
+                className="cursor-pointer"
               >
                 {saving ? 'Saving...' : 'Save Payment'}
               </Button>
@@ -224,7 +224,7 @@ export default function PaymentsPage() {
                   setPaymentDate(new Date().toISOString().split('T')[0])
                 }}
                 variant="outline"
-                className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
@@ -233,10 +233,10 @@ export default function PaymentsPage() {
         </div>
       )}
 
-      <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">All Payments ({payments.length})</h2>
+      <div className="bg-card border border-border rounded-lg p-6">
+        <h2 className="text-lg font-normal tracking-tight mb-4">All Payments ({payments.length})</h2>
         {payments.length === 0 ? (
-          <p className="text-gray-400">No payments found.</p>
+          <p className="text-muted-foreground">No payments found.</p>
         ) : (
           <div className="space-y-4">
             {payments.map((payment) => {
@@ -244,28 +244,28 @@ export default function PaymentsPage() {
               const client = contract ? clientMap.get(contract.person_id) : null
 
               return (
-                <div key={payment.id} className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
-                  <div className="space-y-1 text-sm text-gray-300">
+                <div key={payment.id} className="bg-background border border-border rounded-lg p-4">
+                  <div className="space-y-1 text-sm text-muted-foreground">
                     <p>
-                      <span className="font-semibold text-white">Amount:</span> $
+                      <span className="font-semibold text-foreground">Amount:</span> $
                       {Number(payment.amount).toFixed(2)}
                     </p>
                     <p>
-                      <span className="font-semibold text-white">Date:</span>{' '}
+                      <span className="font-semibold text-foreground">Date:</span>{' '}
                       {new Date(payment.payment_date).toLocaleDateString()}
                     </p>
                     <p>
-                      <span className="font-semibold text-white">Status:</span>{' '}
+                      <span className="font-semibold text-foreground">Status:</span>{' '}
                       {payment.status ?? '-'}
                     </p>
                     {contract && (
                       <p>
-                        <span className="font-semibold text-white">Contract:</span> {contract.name}
+                        <span className="font-semibold text-foreground">Contract:</span> {contract.name}
                       </p>
                     )}
                     {client && (
                       <p>
-                        <span className="font-semibold text-white">Client:</span> {client.name}
+                        <span className="font-semibold text-foreground">Client:</span> {client.name}
                       </p>
                     )}
                   </div>

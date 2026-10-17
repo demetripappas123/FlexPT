@@ -33,22 +33,34 @@ export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promis
 }
 
 /**
- * Close rate from sessions.converted (consult attribution), not people.converted_at.
- * Conversion itself happens when a package is assigned. Wire this flag later
- * if we want to know which session closed them.
+ * Close rate is closes / completed lead sessions.
+ * A close is the session marked role=close on a conversion.
+ * Older rows that only set sessions.converted still count when they were never linked.
  */
 export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number | null> {
   const prospectSessions = await fetchProspectSessions(dateRange)
-  
-  // Filter for completed sessions only
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
-  
   if (completedSessions.length === 0) return null
-  
-  const convertedSessions = completedSessions.filter(s => s.converted === true).length
-  const totalCompletedSessions = completedSessions.length
-  
-  return (convertedSessions / totalCompletedSessions) * 100
+
+  const ids = completedSessions.map((session) => session.id)
+  const { data, error } = await supabase
+    .from('conversion_sessions')
+    .select('session_id, role')
+    .in('session_id', ids)
+
+  if (error) {
+    console.error('Error fetching conversion sessions for close rate:', error)
+  }
+
+  const linked = new Set((data ?? []).map((row) => row.session_id as string))
+  const closes = new Set(
+    (data ?? []).filter((row) => row.role === 'close').map((row) => row.session_id as string)
+  )
+  const convertedSessions = completedSessions.filter(
+    (session) => closes.has(session.id) || (session.converted && !linked.has(session.id))
+  ).length
+
+  return (convertedSessions / completedSessions.length) * 100
 }
 
 /**

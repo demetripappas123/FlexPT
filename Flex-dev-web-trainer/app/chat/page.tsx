@@ -57,7 +57,7 @@ export default function ChatInboxPage() {
 
   return (
     <div className="text-foreground">
-      <h1 className="text-3xl font-bold">Chat</h1>
+      <h1 className="text-[26px] font-normal tracking-tight">Chat</h1>
       <p className="mt-1 mb-6 text-sm text-muted-foreground">
         Message any of your clients. Each client only talks to you.
       </p>

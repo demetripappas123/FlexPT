@@ -34,7 +34,7 @@ export default function AccountSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Account</h2>
+        <h2 className="text-[22px] font-normal tracking-tight text-foreground mb-2">Account</h2>
         <p className="text-muted-foreground">Manage your account settings</p>
       </div>
 

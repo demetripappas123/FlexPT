@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
+import { PieChart } from 'lucide-react'
 import ReactECharts from 'echarts-for-react'
 import ChartSkeleton from './chartskeleton'
 import { useTheme } from '@/context/themecontext'
@@ -90,7 +91,10 @@ export default function LeadSourcesChart({ sources, loading }: LeadSourcesChartP
   if (!sources || sources.length === 0) {
     return (
       <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] flex flex-col">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Lead sources</h3>
+        <div className="mb-4 flex items-center gap-2">
+          <PieChart className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-muted-foreground">Lead sources</h3>
+        </div>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-muted-foreground text-sm">No lead source data yet</p>
         </div>
@@ -100,7 +104,10 @@ export default function LeadSourcesChart({ sources, loading }: LeadSourcesChartP
 
   return (
     <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] flex flex-col">
-      <h3 className="text-sm font-semibold text-muted-foreground mb-4">Lead sources</h3>
+      <div className="mb-4 flex items-center gap-2">
+        <PieChart className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold text-muted-foreground">Lead sources</h3>
+      </div>
       <div className="flex-1 min-h-[220px]">
         <ReactECharts option={option} style={{ height: 220, width: '100%' }} opts={{ renderer: 'svg' }} />
       </div>

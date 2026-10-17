@@ -41,7 +41,7 @@ export default function DeleteProgramDialog({
       {isDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="bg-card p-6 rounded-lg shadow-lg w-96 border border-border">
-            <h2 className="text-xl font-bold text-foreground mb-4">Delete Program</h2>
+            <h2 className="text-lg font-normal tracking-tight text-foreground mb-4">Delete Program</h2>
             <p className="text-muted-foreground mb-4">
               Are you sure you want to delete <span className="font-semibold">{programName}</span>? This action cannot be undone.
             </p>

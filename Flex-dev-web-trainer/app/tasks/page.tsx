@@ -32,7 +32,7 @@ export default function TasksPage() {
     <div className="p-8 bg-background text-foreground min-h-screen">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Tasks</h1>
+          <h1 className="text-[26px] font-normal tracking-tight">Tasks</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Open deliverables from paid entitlements. Scheduling or assigning closes them.
           </p>

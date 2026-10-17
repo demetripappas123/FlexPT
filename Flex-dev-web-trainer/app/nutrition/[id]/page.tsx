@@ -289,7 +289,7 @@ export default function NutritionProgramPage() {
 
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{program.name}</h1>
+            <h1 className="text-[22px] font-normal tracking-tight text-foreground">{program.name}</h1>
             {program.description && (
               <p className="text-muted-foreground">{program.description}</p>
             )}

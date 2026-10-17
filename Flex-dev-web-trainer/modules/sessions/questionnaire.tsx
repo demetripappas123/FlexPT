@@ -21,9 +21,9 @@ export default function Questionnaire({ sessionId, prospectId, onCompletionChang
   return (
     <div className="mt-8 bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-foreground">Questionnaire</h2>
+        <h2 className="text-[22px] font-normal tracking-tight text-foreground">Questionnaire</h2>
         {completed && (
-          <span className="px-3 py-1 bg-green-500 text-white text-sm rounded-md">
+          <span className="px-3 py-1 bg-secondary text-foreground text-sm rounded-md">
             Completed
           </span>
         )}

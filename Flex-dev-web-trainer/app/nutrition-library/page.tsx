@@ -317,7 +317,7 @@ export default function NutritionLibraryPage() {
   return (
     <div className="p-8 bg-background text-foreground min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Nutrition Library</h1>
+        <h1 className="text-[26px] font-normal tracking-tight text-foreground">Nutrition Library</h1>
       </div>
 
       {/* Nutrition Programs Section */}

@@ -3,11 +3,8 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
-import { updateWorkout } from '@/supabase/upserts/upsertworkout'
 import {
-  WorkoutDelivery,
   canScheduleSessionOnWorkout,
-  workoutDelivery,
   workoutDeliveryLabel,
 } from '@/supabase/utils/workoutDelivery'
 
@@ -16,58 +13,6 @@ export function WorkoutDeliveryBadge({ workout }: { workout: WorkoutWithData }) 
     <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
       {workoutDeliveryLabel(workout)}
     </span>
-  )
-}
-
-export function WorkoutDeliveryToggle({
-  workout,
-  onChanged,
-}: {
-  workout: WorkoutWithData
-  onChanged: () => void
-}) {
-  const delivery = workoutDelivery(workout)
-  const setDelivery = async (next: WorkoutDelivery) => {
-    if (next === delivery) return
-    try {
-      await updateWorkout(workout.id, { delivery: next })
-      onChanged()
-    } catch (err) {
-      console.error('Error updating workout delivery:', err)
-      alert('Could not update session vs solo')
-    }
-  }
-  return (
-    <div className="flex rounded-md border border-border overflow-hidden text-[11px]">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          setDelivery('session')
-        }}
-        className={`px-2 py-1 cursor-pointer ${
-          delivery === 'session'
-            ? 'bg-foreground text-background'
-            : 'bg-background text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Session
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          setDelivery('solo')
-        }}
-        className={`px-2 py-1 cursor-pointer ${
-          delivery === 'solo'
-            ? 'bg-foreground text-background'
-            : 'bg-background text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Solo
-      </button>
-    </div>
   )
 }
 

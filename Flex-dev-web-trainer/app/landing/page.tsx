@@ -130,7 +130,7 @@ export default function LandingPage() {
             <div className="landing-header-inner flex w-full items-center gap-4 lg:gap-6">
               <Link
                 href="#overview"
-                className="landing-header-logo shrink-0 text-2xl font-bold"
+                className="landing-header-logo shrink-0 text-[22px] font-normal tracking-tight"
                 onClick={() => setMobileNavOpen(false)}
               >
                 FlexPT
@@ -203,7 +203,7 @@ export default function LandingPage() {
                   </p>
                 </HeroEntranceItem>
                 <HeroEntranceItem>
-                  <h1 className="max-w-xl text-2xl font-bold tracking-tight sm:text-3xl md:text-3xl lg:text-[2.25rem] lg:leading-tight xl:text-4xl">
+                  <h1 className="max-w-xl text-[22px] font-normal tracking-tight tracking-tight sm:text-3xl md:text-3xl lg:text-[2.25rem] lg:leading-tight xl:text-4xl">
                     <span>Get Clients,</span> <span>Keep Clients,</span>{' '}
                     <span>and Automate Your Business Growth.</span>
                   </h1>
@@ -268,7 +268,7 @@ export default function LandingPage() {
         >
           <div className="relative z-10 mx-auto w-full max-w-7xl px-3 sm:px-4">
             <ScrollReveal>
-              <h2 className="text-center text-2xl font-bold text-white md:text-3xl">
+              <h2 className="text-center text-[22px] font-normal tracking-tight text-white md:text-3xl">
                 Everything you need to coach at scale
               </h2>
             </ScrollReveal>
@@ -304,7 +304,7 @@ export default function LandingPage() {
         >
           <div className="mx-auto w-full max-w-7xl px-3 sm:px-4">
             <ScrollReveal>
-              <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+              <h2 className="text-center text-[22px] font-normal tracking-tight tracking-tight sm:text-3xl">
                 Get in touch
               </h2>
             </ScrollReveal>

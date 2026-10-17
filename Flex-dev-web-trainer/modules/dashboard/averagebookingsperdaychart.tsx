@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Calendar } from 'lucide-react'
 import { fetchAverageBookingsPerDay } from '@/supabase/fetches/fetchaveragebookingsperday'
 
 type AverageBookingsPerDayChartProps = {
@@ -40,7 +41,10 @@ export default function AverageBookingsPerDayChart({
         {loading ? (
           <div className="h-8 bg-muted rounded animate-pulse"></div>
         ) : (
-          <p className="text-2xl font-bold text-foreground">{averageBookings.toFixed(1)}</p>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary shrink-0" />
+            <p className="text-2xl font-normal tracking-tight text-foreground">{averageBookings.toFixed(1)}</p>
+          </div>
         )}
       </>
     )
@@ -54,7 +58,7 @@ export default function AverageBookingsPerDayChart({
           <div className="text-muted-foreground">Loading...</div>
         ) : (
           <div className="text-center w-full">
-            <div className="text-5xl font-bold text-foreground">{averageBookings.toFixed(1)}</div>
+            <div className="text-5xl font-normal tracking-tight text-foreground">{averageBookings.toFixed(1)}</div>
             <div className="text-xs text-muted-foreground mt-2 mb-4">
               Average per day ({timeframe === 'week' ? 'past 7 days' : 'past 30 days'})
             </div>

@@ -20,7 +20,7 @@ export default function BehindOnSessions({ clients, loading }: BehindOnSessionsP
   return (
     <section className="bg-card border border-border rounded-lg p-3">
       <div className="flex items-center gap-2 mb-3">
-        <CalendarClock className="h-4 w-4 text-muted-foreground shrink-0" />
+        <CalendarClock className="h-4 w-4 text-primary shrink-0" />
         <h2 className="text-sm font-semibold">Behind on sessions</h2>
         {!loading && (
           <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground">

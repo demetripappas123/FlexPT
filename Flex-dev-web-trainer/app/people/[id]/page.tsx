@@ -62,7 +62,6 @@ import { isSoloWorkoutOverdue, workoutDeliveryCardClass } from '@/supabase/utils
 import {
   ScheduleSessionButton,
   WorkoutDeliveryBadge,
-  WorkoutDeliveryToggle,
 } from '@/modules/clients/workoutsessioncontrols'
 import {
   Command,
@@ -509,10 +508,10 @@ export default function PersonPage() {
         </button>
 
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold mb-4">{person.name}</h1>
+          <h1 className="text-[26px] font-normal tracking-tight mb-4">{person.name}</h1>
           <Button
             onClick={handleConvertToClient}
-            className="bg-green-600 hover:bg-green-700 text-white cursor-pointer flex items-center gap-2"
+            className="cursor-pointer flex items-center gap-2"
           >
             <UserCheck className="h-5 w-5" />
             Convert to Client
@@ -552,7 +551,7 @@ export default function PersonPage() {
       <div className="flex items-center justify-between mb-4 gap-4">
         <div className="flex min-w-0 items-center gap-4">
           <ClientAvatar person={person} onUpdated={setPerson} />
-          <h1 className="truncate text-3xl font-bold">{person.name}</h1>
+          <h1 className="truncate text-[26px] font-normal tracking-tight">{person.name}</h1>
         </div>
         {isClient && (
           <div className="flex items-center gap-2">
@@ -1051,7 +1050,8 @@ export default function PersonPage() {
                             }]
                             setNewWorkoutExercises(updated)
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto cursor-pointer"
+                          variant="outline"
+                          className="text-xs px-2 py-1 h-auto cursor-pointer"
                         >
                           <PlusIcon className="h-3 w-3 mr-1" />
                           Add Set
@@ -1313,15 +1313,6 @@ export default function PersonPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <WorkoutDeliveryToggle
-                            workout={workout}
-                            onChanged={async () => {
-                              if (person) {
-                                const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
-                                setWorkouts(workoutsWithData)
-                              }
-                            }}
-                          />
                           <ScheduleSessionButton
                             workout={workout}
                             remainingUnits={sessionUnitsRemaining}

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ReactECharts from 'echarts-for-react'
 import { fetchHistoricalRevenue, HistoricalRevenuePoint } from '@/supabase/fetches/fetchhistoricalrevenue'
@@ -93,10 +93,10 @@ export default function ToggleRevenueCard({
 
     return {
       grid: {
-        left: 8,
-        right: 16,
-        top: 72,
-        bottom: 8,
+        left: 4,
+        right: 12,
+        top: 12,
+        bottom: 4,
         containLabel: true,
       },
       xAxis: {
@@ -188,51 +188,55 @@ export default function ToggleRevenueCard({
   }, [historicalData, chartColors])
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] h-full flex flex-col relative overflow-hidden">
-      {/* Background Line Chart */}
-      {historicalData.length > 0 && !loadingHistory && chartOption && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-lg" style={{ opacity: 0.7, zIndex: 0 }}>
-          <ReactECharts
-            option={chartOption}
-            style={{ width: '100%', height: '100%' }}
-            opts={{ renderer: 'svg' }}
-          />
-        </div>
-      )}
-
-      <div className="relative z-10 flex flex-col flex-1">
-        {/* Header with distinct area */}
-        <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
-          <h3 className="text-lg font-semibold">{currentRevenue.label}</h3>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => navigateRevenue('prev')}
-              variant="outline"
-              size="sm"
-              className="bg-[var(--bg-primary)] border-[var(--border-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] h-8 w-8 p-0 cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => navigateRevenue('next')}
-              variant="outline"
-              size="sm"
-              className="bg-[var(--bg-primary)] border-[var(--border-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] h-8 w-8 p-0 cursor-pointer"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        
-        <div className="flex-1 flex items-center justify-center">
+    <div className="bg-card border border-border rounded-lg p-4 min-h-[300px] h-full flex flex-col overflow-hidden">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-medium text-muted-foreground">{currentRevenue.label}</h3>
           {currentRevenue.value === null ? (
-            <div className="h-12 w-32 bg-muted rounded animate-pulse"></div>
+            <div className="mt-2 h-9 w-36 bg-muted rounded animate-pulse" />
           ) : (
-            <p className="text-4xl font-bold">
-              ${currentRevenue.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary shrink-0" />
+              <p className="text-3xl font-normal tracking-tight text-foreground tabular-nums">
+                ${currentRevenue.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
           )}
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={() => navigateRevenue('prev')}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 cursor-pointer"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => navigateRevenue('next')}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 cursor-pointer"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-2 min-h-0 flex-1">
+        {loadingHistory ? (
+          <div className="h-full min-h-[160px] rounded bg-muted animate-pulse" />
+        ) : chartOption ? (
+          <ReactECharts
+            option={chartOption}
+            style={{ width: '100%', height: '100%', minHeight: 160 }}
+            opts={{ renderer: 'svg' }}
+          />
+        ) : (
+          <div className="flex h-full min-h-[160px] items-center justify-center text-sm text-muted-foreground">
+            No revenue in this range
+          </div>
+        )}
       </div>
     </div>
   )

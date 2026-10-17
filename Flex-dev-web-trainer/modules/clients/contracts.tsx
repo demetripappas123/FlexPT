@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Plus, X, Pencil, Trash } from 'lucide-react'
+import { conversionPathLabel, fetchConversionSessionsForPerson } from '@/supabase/utils/conversionSessions'
 
 type ContractsProps = {
   contracts: Contract[]
@@ -110,6 +111,7 @@ export default function Contracts({
   const [deleting, setDeleting] = useState(false)
   const [packageServices, setPackageServices] = useState<PackageService[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [conversionLabelByContract, setConversionLabelByContract] = useState<Record<string, string>>({})
 
   const packageMap = useMemo(() => new Map(packages.map((pkg) => [pkg.id, pkg])), [packages])
   const serviceMap = useMemo(() => new Map(services.map((s) => [s.id, s])), [services])
@@ -129,6 +131,30 @@ export default function Contracts({
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchConversionSessionsForPerson(personId)
+      .then((rows) => {
+        if (cancelled) return
+        const grouped = new Map<string, typeof rows>()
+        for (const row of rows) {
+          const list = grouped.get(row.contract_id) ?? []
+          list.push(row)
+          grouped.set(row.contract_id, list)
+        }
+        const labels: Record<string, string> = {}
+        for (const [contractId, list] of grouped) {
+          const label = conversionPathLabel(list)
+          if (label) labels[contractId] = label
+        }
+        setConversionLabelByContract(labels)
+      })
+      .catch((err) => console.error('Error loading conversion path:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [personId, contracts])
 
   const cadenceFromPackage = (packageId: string | null | undefined): SuggestedSessionsPerWeek | null => {
     if (!packageId) return null
@@ -608,6 +634,7 @@ export default function Contracts({
             const billingLabel = contract.pif
               ? `PIF ${formatMoney(contract.pif_cost)}`
               : `${formatMoney(contract.cost_per_bill_cycle)} / ${contract.bill_cycle_length_weeks ?? '—'} wk cycle`
+            const conversionLabel = conversionLabelByContract[contract.id]
           
           return (
             <div
@@ -655,6 +682,11 @@ export default function Contracts({
                   <div>
                     <span className="font-semibold text-foreground">Billing:</span> {billingLabel}
                   </div>
+                  {conversionLabel && (
+                    <div>
+                      <span className="font-semibold text-foreground">Lead path:</span> {conversionLabel}
+                    </div>
+                  )}
                   <div>
                     <span className="font-semibold text-foreground">Collector:</span>{' '}
                     {PAYMENT_COLLECTOR_LABEL[contract.payment_collector ?? 'flex']}

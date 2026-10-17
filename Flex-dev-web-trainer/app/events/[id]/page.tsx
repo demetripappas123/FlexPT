@@ -9,6 +9,8 @@ import EditWorkout from '@/modules/sessions/editworkout'
 import StartSession from '@/modules/sessions/startsession'
 import Questionnaire from '@/modules/sessions/questionnaire'
 import { Button } from '@/components/ui/button'
+import RejectionReasonField from '@/modules/sessions/rejectionreason'
+import { isProspectSessionType } from '@/supabase/utils/dashboardMetrics'
 import { TrashIcon, PencilIcon } from '@heroicons/react/24/solid'
 import { fetchSessionById, fetchSessionWithExercises, SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { deleteSession } from '@/supabase/deletions/deletesession'
@@ -39,6 +41,7 @@ export default function EventPage() {
   const [editWorkoutOpen, setEditWorkoutOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
   const [missedDialogOpen, setMissedDialogOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
 
@@ -116,15 +119,17 @@ export default function EventPage() {
     return (
       <main className="p-8 text-foreground bg-background min-h-screen">
         <div className="flex items-center gap-4 mb-4">
-          <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
+          <h1 className="text-[26px] font-normal tracking-tight text-foreground">{session.type}</h1>
           {isCancelled && (
             <span className={`px-3 py-1 rounded-md text-sm font-semibold ${
               session.missed === 'missed' || session.status === 'canceled_with_charge'
                 ? 'bg-destructive/20 text-destructive border border-destructive/50' 
                 : 'bg-primary/20 text-primary border border-primary/50'
             }`}>
-              {sessionMissedLabel(session) ??
-                (session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)')}
+              {session.rejection_reason
+                ? session.rejection_reason
+                : sessionMissedLabel(session) ??
+                  (session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)')}
             </span>
           )}
         </div>
@@ -164,12 +169,41 @@ export default function EventPage() {
               </span>
             )}
           </p>
+          {isProspectSessionType(session.type) && !session.converted && (
+            <div className="max-w-md pt-2">
+              <RejectionReasonField
+                value={rejectionReason || session.rejection_reason || ''}
+                onChange={setRejectionReason}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2 cursor-pointer"
+                onClick={async () => {
+                  try {
+                    await upsertSession({
+                      id: session.id,
+                      type: session.type,
+                      rejection_reason: rejectionReason || session.rejection_reason || '',
+                    })
+                    const next = await fetchSessionWithExercises(session.id)
+                    if (next) setSession(next)
+                  } catch (error) {
+                    console.error(error)
+                    alert('Could not save the rejection reason.')
+                  }
+                }}
+              >
+                Save reason
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Display completed workout with actual sets */}
         {session.exercises && session.exercises.length > 0 ? (
           <div className="mt-8 bg-card border border-border rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Completed Workout</h2>
+            <h2 className="text-[22px] font-normal tracking-tight text-foreground mb-6">Completed Workout</h2>
             <div className="space-y-6">
               {session.exercises.map((exercise, idx) => (
                 <div key={exercise.id || idx} className="bg-background rounded-md p-4">
@@ -211,7 +245,7 @@ export default function EventPage() {
           </div>
         ) : (
           <div className="mt-8 bg-card border border-border rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-foreground mb-2">Completed Workout</h2>
+            <h2 className="text-[22px] font-normal tracking-tight text-foreground mb-2">Completed Workout</h2>
             <p className="text-muted-foreground">No workout data available for this session.</p>
           </div>
         )}
@@ -289,7 +323,7 @@ export default function EventPage() {
   return (
     <main className="p-8 text-foreground bg-background min-h-screen">
       <div className="flex items-center gap-4 mb-4">
-        <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
+        <h1 className="text-[26px] font-normal tracking-tight text-foreground">{session.type}</h1>
         {(session.missed === 'suggested' || sessionLooksMissed(session)) && (
           <span className="px-3 py-1 rounded-md text-sm font-semibold bg-amber-500/20 text-amber-500 border border-amber-500/50">
             Looks missed
@@ -350,7 +384,7 @@ export default function EventPage() {
       {session && session.workout_id && (
         <div className="mt-8 bg-card border border-border rounded-lg p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-foreground">Assigned Workout</h2>
+            <h2 className="text-[22px] font-normal tracking-tight text-foreground">Assigned Workout</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setEditWorkoutOpen(true)}
@@ -458,7 +492,7 @@ export default function EventPage() {
                   }
                 }
               }}
-              className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
+              className="w-full cursor-pointer"
             >
               Start Session
             </Button>
@@ -680,13 +714,16 @@ export default function EventPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-4">
+            {session && isProspectSessionType(session.type) && (
+              <RejectionReasonField value={rejectionReason} onChange={setRejectionReason} />
+            )}
             <Button
               type="button"
               onClick={async () => {
                 try {
                   if (!session) return
                   // Mark session as cancelled with charge (update status)
-                  await markSessionCancelled(session, true)
+                  await markSessionCancelled(session, true, rejectionReason)
                   
                   setCancelDialogOpen(false)
                   alert('Session canceled with charge')
@@ -710,7 +747,7 @@ export default function EventPage() {
                 try {
                   if (!session) return
                   // Mark session as cancelled without charge (update status)
-                  await markSessionCancelled(session, false)
+                  await markSessionCancelled(session, false, rejectionReason)
                   
                   setCancelDialogOpen(false)
                   alert('Session canceled without charge')
@@ -751,12 +788,15 @@ export default function EventPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-4">
+            {session && isProspectSessionType(session.type) && (
+              <RejectionReasonField value={rejectionReason} onChange={setRejectionReason} />
+            )}
             <Button
               type="button"
               onClick={async () => {
                 try {
                   if (!session) return
-                  await markSessionMissed(session, true)
+                  await markSessionMissed(session, true, rejectionReason)
                   setMissedDialogOpen(false)
                   const sessionWithExercises = await fetchSessionWithExercises(session.id)
                   if (sessionWithExercises) setSession(sessionWithExercises)
@@ -774,7 +814,7 @@ export default function EventPage() {
               onClick={async () => {
                 try {
                   if (!session) return
-                  await markSessionMissed(session, false)
+                  await markSessionMissed(session, false, rejectionReason)
                   setMissedDialogOpen(false)
                   const sessionWithExercises = await fetchSessionWithExercises(session.id)
                   if (sessionWithExercises) setSession(sessionWithExercises)
