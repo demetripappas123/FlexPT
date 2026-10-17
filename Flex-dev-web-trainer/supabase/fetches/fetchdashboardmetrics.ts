@@ -24,12 +24,18 @@ export interface DashboardMetrics {
   projectedRevenue: number
 }
 
-async function calculateCloseRate(dateRange?: DateRangeBounds): Promise<number | null> {
-  return calculateProspectSessionCloseRate(dateRange)
+async function calculateCloseRate(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<number | null> {
+  return calculateProspectSessionCloseRate(dateRange, trainerId)
 }
 
-async function calculateShowRate(dateRange?: DateRangeBounds): Promise<number | null> {
-  return calculateProspectSessionShowRate(dateRange)
+async function calculateShowRate(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<number | null> {
+  return calculateProspectSessionShowRate(dateRange, trainerId)
 }
 
 function roundRate(value: number | null): number | null {
@@ -120,8 +126,8 @@ export async function fetchDashboardMetrics(
 ): Promise<DashboardMetrics> {
   const [closeRate, showRate, averageBookings, revenue, trainedRevenue, hourlyAverage, mtdRevenue, projectedRevenue] =
     await Promise.all([
-      calculateCloseRate(dateRange),
-      calculateShowRate(dateRange),
+      calculateCloseRate(trainerId, dateRange),
+      calculateShowRate(trainerId, dateRange),
       calculateAverageBookings(trainerId, dateRange),
       calculateRevenue(trainerId),
       fetchTrainedRevenue(trainerId, dateRange),
@@ -156,8 +162,8 @@ export async function fetchDashboardMetricsProgressive(
   projectedRevenue: Promise<number>
 }> {
   return {
-    closeRate: calculateCloseRate(dateRange).then(roundRate),
-    showRate: calculateShowRate(dateRange).then(roundRate),
+    closeRate: calculateCloseRate(trainerId, dateRange).then(roundRate),
+    showRate: calculateShowRate(trainerId, dateRange).then(roundRate),
     averageBookings: calculateAverageBookings(trainerId, dateRange).then((r) => Math.round(r)),
     revenue: calculateRevenue(trainerId).then((r) => Math.round(r * 100) / 100),
     trainedRevenue: fetchTrainedRevenue(trainerId, dateRange).then((r) => Math.round(r * 100) / 100),

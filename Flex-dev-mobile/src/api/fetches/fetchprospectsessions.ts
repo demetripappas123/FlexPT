@@ -6,12 +6,18 @@ import { DateRangeBounds } from '../utils/daterange'
  * Fetch all prospect sessions (Prospect Session, Intro Session, Followup Session)
  * Optionally filtered by date range (based on created_at)
  */
-export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promise<Session[]> {
+export async function fetchProspectSessions(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<Session[]> {
+  if (!trainerId) return []
+
   const prospectTypes: SessionType[] = ['Prospect Session', 'Intro Session', 'Followup Session']
   
   let query = supabase
     .from('sessions')
     .select('*')
+    .eq('trainer_id', trainerId)
     .in('type', prospectTypes)
 
   if (dateRange) {
@@ -37,13 +43,16 @@ export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promis
  * Conversion itself happens when a package is assigned. Wire this flag later
  * if we want to know which session closed them.
  */
-export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number> {
-  const prospectSessions = await fetchProspectSessions(dateRange)
+export async function calculateProspectSessionCloseRate(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<number | null> {
+  const prospectSessions = await fetchProspectSessions(dateRange, trainerId)
   
   // Filter for completed sessions only
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
   
-  if (completedSessions.length === 0) return 0
+  if (completedSessions.length === 0) return null
   
   const convertedSessions = completedSessions.filter(s => s.converted === true).length
   const totalCompletedSessions = completedSessions.length
@@ -57,8 +66,11 @@ export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBou
  * Only considers prospect sessions: Prospect Session, Intro Session, Followup Session
  * Optionally filtered by date range
  */
-export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number> {
-  const prospectSessions = await fetchProspectSessions(dateRange)
+export async function calculateProspectSessionShowRate(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<number | null> {
+  const prospectSessions = await fetchProspectSessions(dateRange, trainerId)
   
   // Filter for completed sessions
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
@@ -70,7 +82,7 @@ export async function calculateProspectSessionShowRate(dateRange?: DateRangeBoun
   
   const totalRelevantSessions = completedSessions.length + cancelledSessions.length
   
-  if (totalRelevantSessions === 0) return 0
+  if (totalRelevantSessions === 0) return null
   
   return (completedSessions.length / totalRelevantSessions) * 100
 }

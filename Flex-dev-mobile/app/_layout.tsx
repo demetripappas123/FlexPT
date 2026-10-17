@@ -1,6 +1,5 @@
 import 'react-native-gesture-handler'
-import { DarkTheme, ThemeProvider } from '@react-navigation/native'
-import { Stack } from 'expo-router'
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { AuthProvider } from '@/context/AuthContext'
 import { colors } from '@/constants/theme'

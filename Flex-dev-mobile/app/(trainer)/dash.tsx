@@ -68,8 +68,8 @@ export default function DashScreen() {
     <Screen title="Dashboard" subtitle="Same metrics as web /dash" onRefresh={reload}>
       <ErrorText text={error} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Metric label="Close rate" value={data?.closeRate != null ? `${Math.round(data.closeRate * 100)}%` : null} />
-        <Metric label="Show rate" value={data?.showRate != null ? `${Math.round(data.showRate * 100)}%` : null} />
+        <Metric label="Close rate" value={data?.closeRate != null ? `${Math.round(data.closeRate)}%` : null} />
+        <Metric label="Show rate" value={data?.showRate != null ? `${Math.round(data.showRate)}%` : null} />
         <Metric label="Avg bookings today" value={data?.averageBookings != null ? data.averageBookings.toFixed(1) : null} />
         <Metric label="MTD revenue" value={data?.mtdRevenue != null ? `$${Math.round(data.mtdRevenue)}` : null} />
         <Metric label="Trained revenue" value={data?.trainedRevenue != null ? `$${Math.round(data.trainedRevenue)}` : null} />

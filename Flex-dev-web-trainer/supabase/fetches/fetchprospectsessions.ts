@@ -6,12 +6,18 @@ import { DateRangeBounds } from '../utils/daterange'
  * Fetch all prospect sessions (Prospect Session, Intro Session, Followup Session)
  * Optionally filtered by date range (based on created_at)
  */
-export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promise<Session[]> {
+export async function fetchProspectSessions(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<Session[]> {
+  if (!trainerId) return []
+
   const prospectTypes: SessionType[] = ['Prospect Session', 'Intro Session', 'Followup Session']
   
   let query = supabase
     .from('sessions')
     .select('*')
+    .eq('trainer_id', trainerId)
     .in('type', prospectTypes)
 
   if (dateRange) {
@@ -37,8 +43,11 @@ export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promis
  * A close is the session marked role=close on a conversion.
  * Older rows that only set sessions.converted still count when they were never linked.
  */
-export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number | null> {
-  const prospectSessions = await fetchProspectSessions(dateRange)
+export async function calculateProspectSessionCloseRate(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<number | null> {
+  const prospectSessions = await fetchProspectSessions(dateRange, trainerId)
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
   if (completedSessions.length === 0) return null
 
@@ -69,8 +78,11 @@ export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBou
  * Only considers prospect sessions: Prospect Session, Intro Session, Followup Session
  * Optionally filtered by date range
  */
-export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number | null> {
-  const prospectSessions = await fetchProspectSessions(dateRange)
+export async function calculateProspectSessionShowRate(
+  dateRange?: DateRangeBounds,
+  trainerId?: string | null
+): Promise<number | null> {
+  const prospectSessions = await fetchProspectSessions(dateRange, trainerId)
   
   // Filter for completed sessions
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')

@@ -14,8 +14,8 @@ import {
 } from '../utils/dashboardMetrics'
 
 export interface DashboardMetrics {
-  closeRate: number
-  showRate: number
+  closeRate: number | null
+  showRate: number | null
   averageBookings: number
   revenue: number
   trainedRevenue: number
@@ -24,12 +24,18 @@ export interface DashboardMetrics {
   projectedRevenue: number
 }
 
-async function calculateCloseRate(dateRange?: DateRangeBounds): Promise<number> {
-  return calculateProspectSessionCloseRate(dateRange)
+async function calculateCloseRate(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<number | null> {
+  return calculateProspectSessionCloseRate(dateRange, trainerId)
 }
 
-async function calculateShowRate(dateRange?: DateRangeBounds): Promise<number> {
-  return calculateProspectSessionShowRate(dateRange)
+async function calculateShowRate(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<number | null> {
+  return calculateProspectSessionShowRate(dateRange, trainerId)
 }
 
 async function calculateAverageBookings(
@@ -115,8 +121,8 @@ export async function fetchDashboardMetrics(
 ): Promise<DashboardMetrics> {
   const [closeRate, showRate, averageBookings, revenue, trainedRevenue, hourlyAverage, mtdRevenue, projectedRevenue] =
     await Promise.all([
-      calculateCloseRate(dateRange),
-      calculateShowRate(dateRange),
+      calculateCloseRate(trainerId, dateRange),
+      calculateShowRate(trainerId, dateRange),
       calculateAverageBookings(trainerId, dateRange),
       calculateRevenue(trainerId),
       fetchTrainedRevenue(trainerId, dateRange),
@@ -126,8 +132,8 @@ export async function fetchDashboardMetrics(
     ])
 
   return {
-    closeRate: Math.round(closeRate * 100) / 100,
-    showRate: Math.round(showRate * 100) / 100,
+    closeRate: closeRate == null ? null : Math.round(closeRate * 100) / 100,
+    showRate: showRate == null ? null : Math.round(showRate * 100) / 100,
     averageBookings: Math.round(averageBookings),
     revenue: Math.round(revenue * 100) / 100,
     trainedRevenue: Math.round(trainedRevenue * 100) / 100,
@@ -141,8 +147,8 @@ export async function fetchDashboardMetricsProgressive(
   trainerId?: string | null,
   dateRange?: DateRangeBounds
 ): Promise<{
-  closeRate: Promise<number>
-  showRate: Promise<number>
+  closeRate: Promise<number | null>
+  showRate: Promise<number | null>
   averageBookings: Promise<number>
   revenue: Promise<number>
   trainedRevenue: Promise<number>
@@ -151,8 +157,8 @@ export async function fetchDashboardMetricsProgressive(
   projectedRevenue: Promise<number>
 }> {
   return {
-    closeRate: calculateCloseRate(dateRange).then((r) => Math.round(r * 100) / 100),
-    showRate: calculateShowRate(dateRange).then((r) => Math.round(r * 100) / 100),
+    closeRate: calculateCloseRate(trainerId, dateRange).then((r) => (r == null ? null : Math.round(r * 100) / 100)),
+    showRate: calculateShowRate(trainerId, dateRange).then((r) => (r == null ? null : Math.round(r * 100) / 100)),
     averageBookings: calculateAverageBookings(trainerId, dateRange).then((r) => Math.round(r)),
     revenue: calculateRevenue(trainerId).then((r) => Math.round(r * 100) / 100),
     trainedRevenue: fetchTrainedRevenue(trainerId, dateRange).then((r) => Math.round(r * 100) / 100),
