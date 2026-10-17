@@ -31,21 +31,19 @@ export async function signUp(email: string, password: string, name?: string) {
     }
   })
 
+  let authError = error
+
   // If user was created but there's an email-related error, treat it as success
   // The user can still sign in even if email confirmation failed
   if (error && data?.user) {
-    // Check if error is related to email confirmation
-    const isEmailError = error.message?.toLowerCase().includes('email') || 
+    const isEmailError = error.message?.toLowerCase().includes('email') ||
                          error.message?.toLowerCase().includes('confirmation') ||
                          error.message?.toLowerCase().includes('send')
-    
+
     if (isEmailError) {
-      // Return success data without the email error
-      // User was created, trainer record will be created below
       console.warn('Email confirmation error (user created anyway):', error.message)
-      // Continue to create trainer record
+      authError = null
     } else {
-      // Real error, return it
       return { data, error }
     }
   } else if (error) {
@@ -73,16 +71,15 @@ export async function signUp(email: string, password: string, name?: string) {
 
       if (trainerError) {
         console.error('Error creating trainer record:', trainerError)
-        // Don't fail the signup if trainer creation fails, but log it
-        // The user can still sign in, but won't have a trainer record
+        return { data, error: trainerError }
       }
     } catch (err) {
       console.error('Unexpected error creating trainer record:', err)
-      // Continue even if trainer creation fails
+      return { data, error: err instanceof Error ? err : new Error('Failed to create trainer') }
     }
   }
 
-  return { data, error }
+  return { data, error: authError }
 }
 
 /**

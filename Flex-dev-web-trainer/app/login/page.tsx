@@ -2,13 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn, signOut, isClientRole } from '@/supabase/auth/auth-helpers'
+import { signIn, signUp, signOut, isClientRole } from '@/supabase/auth/auth-helpers'
 import { useAuth } from '@/context/authcontext'
 import { supabase } from '@/supabase/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-const APPROVED_USERS_NOTICE = '* Only approved users can sign in right now.'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,6 +34,22 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        const { data, error: signUpError } = await signUp(email, password, name.trim() || undefined)
+
+        if (signUpError) {
+          setError(signUpError.message || 'Failed to create account')
+          setIsLoading(false)
+          return
+        }
+
+        if (data?.session) {
+          router.push('/dash')
+          return
+        }
+
+        setSuccessMessage('Account created. Confirm your email if asked, then sign in.')
+        setIsSignUp(false)
+        setPassword('')
         setIsLoading(false)
         return
       }
@@ -153,8 +167,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          <p className="text-sm leading-relaxed text-muted-foreground">{APPROVED_USERS_NOTICE}</p>
-
           {isSignUp && (
             <div>
               <label htmlFor="name" className="mb-1 block text-sm font-medium text-foreground">
@@ -167,7 +179,8 @@ export default function LoginPage() {
                 onChange={(e) => setName(e.target.value)}
                 className="border-border bg-card text-foreground"
                 placeholder="Your name"
-                disabled
+                disabled={isLoading}
+                required
               />
             </div>
           )}
@@ -181,10 +194,10 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required={!isSignUp}
+              required
               className="border-border bg-card text-foreground"
               placeholder="you@example.com"
-              disabled={isLoading || isSignUp}
+              disabled={isLoading}
             />
           </div>
 
@@ -197,20 +210,20 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required={!isSignUp}
+              required
               className="border-border bg-card text-foreground"
               placeholder="••••••••"
-              disabled={isLoading || isSignUp}
+              disabled={isLoading}
               minLength={6}
             />
           </div>
 
           <Button
             type="submit"
-            disabled={isLoading || isSignUp}
+            disabled={isLoading}
             className="w-full"
           >
-            {isLoading ? 'Signing in...' : isSignUp ? 'Sign up' : 'Sign in'}
+            {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Sign up' : 'Sign in'}
           </Button>
         </form>
       </div>
